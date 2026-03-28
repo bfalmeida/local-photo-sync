@@ -8,3 +8,14 @@ spring:
     location: classpath:banner.txt
   main:
     banner-mode: console
+
+logging:
+  level:
+    root: INFO
+    com.github.bfalmeida.photosync: DEBUG
+  file:
+    path: logs
+    name: ${logging.file.path}/photo-sync
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%highlight(%-5level)] %cyan(%logger{36}) - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%level] %logger{36} - %msg%n"
