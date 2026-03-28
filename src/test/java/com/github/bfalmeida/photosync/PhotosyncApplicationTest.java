@@ -44,7 +44,10 @@ class PhotosyncApplicationTest {
     @Test
     void mainMethodRunsWithoutExceptions() {
         try {
-            PhotosyncApplication.main(new String[]{});
+            SpringApplication app = new SpringApplication(PhotosyncApplication.class);
+            app.setWebApplicationType(org.springframework.boot.WebApplicationType.NONE);
+            app.setAdditionalProfiles("test");
+            app.run(new String[]{});
         } catch (Exception e) {
             throw new AssertionError("main method should run without throwing exceptions", e);
         }
