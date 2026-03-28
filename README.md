@@ -13,6 +13,22 @@ Application being developed by AI.
 - Dry-run mode for safe previews
 - Interactive CLI powered by Spring Shell
 
+## Progress
+
+- [x] TASK-001: Initialize Maven Project
+- [x] TASK-002: Configure Spring Shell CLI
+- [x] TASK-003: Configure Logging
+- [x] TASK-004: Define Sync Command Structure
+- [ ] TASK-005: Implement File Scanner Service (PR #21)
+- [ ] TASK-006: Implement Date Extraction Service
+- [ ] TASK-007: Implement EXIF Metadata Service
+- [ ] TASK-008: Implement File Copy Service
+- [ ] TASK-009: Implement Main Sync Orchestrator
+- [ ] TASK-010: Create Test Dataset
+- [ ] TASK-011: Write Unit Tests
+- [ ] TASK-012: Update README.md
+- [ ] TASK-013: Final Integration Test
+
 ## Requirements
 
 - Java 21
