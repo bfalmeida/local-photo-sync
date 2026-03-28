@@ -2,6 +2,8 @@
 
 A command-line application to organize photos and videos by extracting dates from filenames and EXIF metadata.
 
+Application being developed by AI.
+
 ## Features
 
 - Organizes files by year and month
