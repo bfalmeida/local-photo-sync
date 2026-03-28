@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: local-photo-sync
+  shell:
+    interactive:
+      enabled: false
