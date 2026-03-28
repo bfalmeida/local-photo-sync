@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 
 import java.io.File;
 
@@ -11,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SyncCommandTest {
 
-    private static final Logger log = LoggerFactory.getLogger(SyncCommandTest.class);
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(SyncCommandTest.class);
 
     private SyncCommand syncCommand;
 
@@ -181,5 +183,59 @@ class SyncCommandTest {
         );
 
         assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+    }
+
+    @Test
+    void testDefaultLogLevelIsInfoWhenNotSpecified() {
+        syncCommand.sync(
+                "/tmp/source",
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                null,
+                null
+        );
+
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        ch.qos.logback.classic.Logger rootLogger = loggerContext.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        assertThat(rootLogger.getLevel()).isEqualTo(Level.INFO);
+    }
+
+    @Test
+    void testNoFileLoggingWhenLogFileNotProvided() {
+        syncCommand.sync(
+                "/tmp/source",
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "DEBUG",
+                null
+        );
+
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        ch.qos.logback.classic.Logger appLogger = loggerContext.getLogger("com.github.bfalmeida.photosync");
+        assertThat(appLogger.getAppender("FileAppender")).isNull();
+    }
+
+    @Test
+    void testNoFileLoggingWhenLogFileIsNull() {
+        syncCommand.sync(
+                "/tmp/source",
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                "null"
+        );
+
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        ch.qos.logback.classic.Logger appLogger = loggerContext.getLogger("com.github.bfalmeida.photosync");
+        assertThat(appLogger.getAppender("FileAppender")).isNull();
     }
 }
