@@ -1,14 +1,12 @@
 package com.github.bfalmeida.photosync;
 
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
-import org.springframework.stereotype.Component;
+import org.springframework.shell.standard.ShellComponent;
+import org.springframework.shell.standard.ShellMethod;
 
-import java.util.Arrays;
-
-@Component
-public class Main implements CommandLineRunner {
+@ShellComponent
+public class Main {
 
     private final ApplicationContext context;
 
@@ -16,9 +14,8 @@ public class Main implements CommandLineRunner {
         this.context = context;
     }
 
-    @Override
-    public void run(String... args) throws Exception {
-        System.out.println("Photo Sync CLI Ready");
+    @ShellMethod(key = "exit", value = "Exit the application")
+    public void exit() {
         SpringApplication.exit(context, () -> 0);
     }
 }

@@ -3,4 +3,8 @@ spring:
     name: local-photo-sync
   shell:
     interactive:
-      enabled: false
+      enabled: true
+  banner:
+    location: classpath:banner.txt
+  main:
+    banner-mode: console
