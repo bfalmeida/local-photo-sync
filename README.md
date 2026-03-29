@@ -19,12 +19,12 @@ Application being developed by AI.
 - [x] TASK-002: Configure Spring Shell CLI
 - [x] TASK-003: Configure Logging
 - [x] TASK-004: Define Sync Command Structure
-- [x] TASK-004b: Make log-level and log-file optional (PR #23)
-- [x] TASK-005: Implement File Scanner Service (PR #21)
-- [x] TASK-005b: Implement File Listing (Scan Only) (PR #25)
-- [ ] TASK-006: Implement Date Extraction Service
-- [ ] TASK-007: Implement EXIF Metadata Service
-- [ ] TASK-008: Implement File Copy Service
+- [x] TASK-004b: Make log-level and log-file optional
+- [x] TASK-005: Implement File Scanner Service
+- [x] TASK-005b: Implement File Listing (Scan Only)
+- [x] TASK-006: Implement Date Extraction Service
+- [x] TASK-007: Implement EXIF Metadata Service
+- [x] TASK-008: Implement File Copy Service
 - [ ] TASK-009: Implement Main Sync Orchestrator
 - [ ] TASK-010: Create Test Dataset
 - [ ] TASK-011: Write Unit Tests
