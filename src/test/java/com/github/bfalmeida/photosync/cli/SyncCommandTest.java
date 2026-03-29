@@ -9,8 +9,10 @@ import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -317,5 +319,117 @@ class SyncCommandTest {
         );
 
         assertThat(result).contains("Done:");
+    }
+
+    @Test
+    void testOutputFormatIncludesDestinationPath(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("IMG_20240101.jpg"));
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(baos));
+        
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        String output = baos.toString();
+        assertThat(output).contains("->");
+        assertThat(output).contains("2024/01/Photos/");
+    }
+
+    @Test
+    void testOutputFormatIncludesFileSize(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("IMG_20240315.jpg"));
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(baos));
+        
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        String output = baos.toString();
+        assertThat(output).contains("(");
+        assertThat(output).contains(")");
+    }
+
+    @Test
+    void testOutputFormatForVideoFile(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("VID_20230520.mp4"));
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(baos));
+        
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        String output = baos.toString();
+        assertThat(output).contains("2023/05/Videos/VID_20230520.mp4");
+    }
+
+    @Test
+    void testOutputFormatForUndatedFile(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("photo.jpg"));
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(baos));
+        
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        String output = baos.toString();
+        assertThat(output).contains("undated/photo.jpg");
+    }
+
+    @Test
+    void testOutputFormatForUndatedFileWithUndatedFolder(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("photo.jpg"));
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(baos));
+        
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                "Undated",
+                false,
+                "INFO",
+                null
+        );
+
+        String output = baos.toString();
+        assertThat(output).contains("Undated/photo.jpg");
     }
 }

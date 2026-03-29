@@ -2,6 +2,7 @@ package com.github.bfalmeida.photosync.cli;
 
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
+import com.github.bfalmeida.photosync.util.DateInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.shell.standard.ShellComponent;
@@ -17,7 +18,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Optional;
 
 @ShellComponent
 public class SyncCommand {
@@ -73,7 +76,19 @@ public class SyncCommand {
                 List<MediaFile> mediaFiles = mediaFileScanner.scanToList(sourcePath);
                 filesFound = mediaFiles.size();
                 for (MediaFile mediaFile : mediaFiles) {
-                    System.out.printf("  %s [%s]%n", mediaFile.getFileName(), mediaFile.getMediaType());
+                    String fileName = mediaFile.getFileName();
+                    Optional<DateInfo> dateInfo = DateInfo.fromFileName(fileName);
+                    String destinationPath;
+                    if (dateInfo.isPresent()) {
+                        destinationPath = dateInfo.get().getDestinationPath(fileName, undatedFolder);
+                    } else if (undatedFolder != null && !undatedFolder.isEmpty()) {
+                        destinationPath = undatedFolder + "/" + fileName;
+                    } else {
+                        destinationPath = "undated/" + fileName;
+                    }
+                    long fileSize = mediaFile.getPath().toFile().length();
+                    String formattedSize = formatFileSize(fileSize);
+                    System.out.printf("  %s -> %s (%s)%n", mediaFile.getPath(), destinationPath, formattedSize);
                 }
                 System.out.printf("Found %d files in source folder%n", filesFound);
             } else {
@@ -114,6 +129,18 @@ public class SyncCommand {
 
             fileAppender.start();
             appLogger.addAppender(fileAppender);
+        }
+    }
+
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        } else if (bytes < 1024 * 1024) {
+            return new DecimalFormat("0.0").format(bytes / 1024.0) + " KB";
+        } else if (bytes < 1024 * 1024 * 1024) {
+            return new DecimalFormat("0.0").format(bytes / (1024.0 * 1024.0)) + " MB";
+        } else {
+            return new DecimalFormat("0.0").format(bytes / (1024.0 * 1024.0 * 1024.0)) + " GB";
         }
     }
 }
