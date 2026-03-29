@@ -1,5 +1,7 @@
 package com.github.bfalmeida.photosync.cli;
 
+import com.github.bfalmeida.photosync.model.MediaFile;
+import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.shell.standard.ShellComponent;
@@ -12,11 +14,21 @@ import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 
 @ShellComponent
 public class SyncCommand {
 
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(SyncCommand.class);
+
+    private final MediaFileScanner mediaFileScanner;
+
+    public SyncCommand(MediaFileScanner mediaFileScanner) {
+        this.mediaFileScanner = mediaFileScanner;
+    }
 
     @ShellMethod(key = "sync", value = "Synchronize photos from source to destination")
     public String sync(
@@ -52,6 +64,23 @@ public class SyncCommand {
         boolean willExecute = execute && !dryRun;
         if (!willExecute) {
             log.info("Running in dry-run mode. Use --execute to perform actual operations.");
+        }
+
+        int filesFound = 0;
+        try {
+            Path sourcePath = Paths.get(source);
+            if (sourcePath.toFile().exists()) {
+                List<MediaFile> mediaFiles = mediaFileScanner.scanToList(sourcePath);
+                filesFound = mediaFiles.size();
+                for (MediaFile mediaFile : mediaFiles) {
+                    System.out.printf("  %s [%s]%n", mediaFile.getFileName(), mediaFile.getMediaType());
+                }
+                System.out.printf("Found %d files in source folder%n", filesFound);
+            } else {
+                log.warn("Source folder does not exist: {}", source);
+            }
+        } catch (IOException e) {
+            log.error("Error scanning source folder: {}", e.getMessage());
         }
 
         int copied = 0;

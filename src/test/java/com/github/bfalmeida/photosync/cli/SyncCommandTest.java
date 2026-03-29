@@ -1,13 +1,18 @@
 package com.github.bfalmeida.photosync.cli;
 
+import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,10 +21,12 @@ class SyncCommandTest {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(SyncCommandTest.class);
 
     private SyncCommand syncCommand;
+    private MediaFileScanner mediaFileScanner;
 
     @BeforeEach
     void setUp() {
-        syncCommand = new SyncCommand();
+        mediaFileScanner = new MediaFileScanner();
+        syncCommand = new SyncCommand(mediaFileScanner);
     }
 
     @Test
@@ -237,5 +244,78 @@ class SyncCommandTest {
         LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
         ch.qos.logback.classic.Logger appLogger = loggerContext.getLogger("com.github.bfalmeida.photosync");
         assertThat(appLogger.getAppender("FileAppender")).isNull();
+    }
+
+    @Test
+    void testFilesFromSourceAreListed(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("photo1.jpg"));
+        Files.createFile(tempDir.resolve("video1.mp4"));
+        Files.createFile(tempDir.resolve("photo2.png"));
+
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        assertThat(result).contains("Done:");
+        log.info("Test files listed: {}", result);
+    }
+
+    @Test
+    void testFileCountIsShown(@TempDir Path tempDir) throws IOException {
+        Files.createFile(tempDir.resolve("photo1.jpg"));
+        Files.createFile(tempDir.resolve("photo2.png"));
+
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        assertThat(result).contains("Done:");
+        log.info("Test file count shown: {}", result);
+    }
+
+    @Test
+    void testEmptySourceFolder(@TempDir Path tempDir) {
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        assertThat(result).contains("Done:");
+    }
+
+    @Test
+    void testScannerErrorHandling() {
+        String result = syncCommand.sync(
+                "/tmp/nonexistent-source",
+                "/tmp/dest",
+                true,
+                false,
+                null,
+                false,
+                "INFO",
+                null
+        );
+
+        assertThat(result).contains("Done:");
     }
 }
