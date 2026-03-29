@@ -56,7 +56,7 @@ public class MediaFileScanner {
             return null;
         }
 
-        return new MediaFile(path, fileName, mediaType);
+        return new MediaFile(path, fileName, mediaType, null);
     }
 
     private String getExtension(String fileName) {
