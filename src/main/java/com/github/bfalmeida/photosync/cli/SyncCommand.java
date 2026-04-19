@@ -1,8 +1,11 @@
 package com.github.bfalmeida.photosync.cli;
 
+import com.github.bfalmeida.photosync.model.CopyResult;
 import com.github.bfalmeida.photosync.model.MediaFile;
+import com.github.bfalmeida.photosync.service.ExifMetadataService;
+import com.github.bfalmeida.photosync.service.FileCopyService;
+import com.github.bfalmeida.photosync.service.FilenameDateExtractor;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
-import com.github.bfalmeida.photosync.util.DateInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.shell.standard.ShellComponent;
@@ -19,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,9 +32,18 @@ public class SyncCommand {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(SyncCommand.class);
 
     private final MediaFileScanner mediaFileScanner;
+    private final FilenameDateExtractor filenameDateExtractor;
+    private final ExifMetadataService exifMetadataService;
+    private final FileCopyService fileCopyService;
 
-    public SyncCommand(MediaFileScanner mediaFileScanner) {
+    public SyncCommand(MediaFileScanner mediaFileScanner,
+                      FilenameDateExtractor filenameDateExtractor,
+                      ExifMetadataService exifMetadataService,
+                      FileCopyService fileCopyService) {
         this.mediaFileScanner = mediaFileScanner;
+        this.filenameDateExtractor = filenameDateExtractor;
+        this.exifMetadataService = exifMetadataService;
+        this.fileCopyService = fileCopyService;
     }
 
     @ShellMethod(key = "sync", value = "Synchronize photos from source to destination")
@@ -70,39 +83,114 @@ public class SyncCommand {
         }
 
         int filesFound = 0;
+        int copied = 0;
+        int skipped = 0;
+        int errors = 0;
+
         try {
             Path sourcePath = Paths.get(source);
+            Path destinationPath = Paths.get(destination);
+
             if (sourcePath.toFile().exists()) {
                 List<MediaFile> mediaFiles = mediaFileScanner.scanToList(sourcePath);
                 filesFound = mediaFiles.size();
+                log.info("Found {} files in source folder", filesFound);
+
                 for (MediaFile mediaFile : mediaFiles) {
-                    String fileName = mediaFile.getFileName();
-                    Optional<DateInfo> dateInfo = DateInfo.fromFileName(fileName);
-                    String destinationPath;
-                    if (dateInfo.isPresent()) {
-                        destinationPath = dateInfo.get().getDestinationPath(fileName, undatedFolder);
-                    } else if (undatedFolder != null && !undatedFolder.isEmpty()) {
-                        destinationPath = undatedFolder + "/" + fileName;
-                    } else {
-                        destinationPath = "undated/" + fileName;
+                    try {
+                        LocalDateTime dateTime = resolveDate(mediaFile);
+
+                        if (dateTime == null) {
+                            if (skipUndated) {
+                                log.debug("Skipping undated file: {}", mediaFile.getFileName());
+                                skipped++;
+                                continue;
+                            }
+                            String undatedPath = buildUndatedPath(mediaFile.getFileName(), undatedFolder);
+                            log.debug("Using undated folder for: {} -> {}", mediaFile.getFileName(), undatedPath);
+                        }
+
+                        if (willExecute) {
+                            MediaFile fileToCopy = createMediaFileWithDate(mediaFile, dateTime);
+                            CopyResult result = fileCopyService.copy(fileToCopy, destinationPath);
+
+                            if (result == CopyResult.SUCCESS) {
+                                copied++;
+                                log.info("Copied: {} -> {}", mediaFile.getFileName(), destinationPath);
+                            } else if (result == CopyResult.SKIPPED) {
+                                skipped++;
+                                log.debug("Skipped (already exists): {}", mediaFile.getFileName());
+                            } else {
+                                errors++;
+                                log.error("Error copying: {}", mediaFile.getFileName());
+                            }
+                        } else {
+                            String destFolder = buildDestinationPath(mediaFile, dateTime, undatedFolder);
+                            long fileSize = mediaFile.getPath().toFile().length();
+                            String formattedSize = formatFileSize(fileSize);
+                            System.out.printf("  %s -> %s (%s)%n", mediaFile.getPath(), destFolder, formattedSize);
+                        }
+                    } catch (Exception e) {
+                        errors++;
+                        log.error("Error processing file {}: {}", mediaFile.getFileName(), e.getMessage());
                     }
-                    long fileSize = mediaFile.getPath().toFile().length();
-                    String formattedSize = formatFileSize(fileSize);
-                    System.out.printf("  %s -> %s (%s)%n", mediaFile.getPath(), destinationPath, formattedSize);
                 }
+
                 System.out.printf("Found %d files in source folder%n", filesFound);
             } else {
                 log.warn("Source folder does not exist: {}", source);
             }
         } catch (IOException e) {
             log.error("Error scanning source folder: {}", e.getMessage());
+            errors++;
         }
 
-        int copied = 0;
-        int skipped = 0;
-        int errors = 0;
-
         return String.format("Done: %d copied, %d skipped, %d errors", copied, skipped, errors);
+    }
+
+    private LocalDateTime resolveDate(MediaFile mediaFile) {
+        Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
+            filenameDateExtractor.extract(mediaFile.getFileName());
+
+        if (filenameDateOpt.isPresent()) {
+            FilenameDateExtractor.DateInfo filenameDate = filenameDateOpt.get();
+            return LocalDateTime.of(filenameDate.getYear(), filenameDate.getMonth(), 1, 0, 0, 0);
+        }
+
+        Optional<LocalDateTime> exifDate = exifMetadataService.readExifDate(mediaFile);
+        if (exifDate.isPresent()) {
+            return exifDate.get();
+        }
+
+        return null;
+    }
+
+    private MediaFile createMediaFileWithDate(MediaFile mediaFile, LocalDateTime dateTime) {
+        return new MediaFile(
+            mediaFile.getPath(),
+            mediaFile.getFileName(),
+            mediaFile.getMediaType(),
+            dateTime
+        );
+    }
+
+    private String buildUndatedPath(String fileName, String undatedFolder) {
+        if (undatedFolder != null && !undatedFolder.isEmpty()) {
+            return undatedFolder + "/" + fileName;
+        }
+        return "undated/" + fileName;
+    }
+
+    private String buildDestinationPath(MediaFile mediaFile, LocalDateTime dateTime, String undatedFolder) {
+        if (dateTime == null) {
+            return buildUndatedPath(mediaFile.getFileName(), undatedFolder);
+        }
+
+        int year = dateTime.getYear();
+        int month = dateTime.getMonthValue();
+        String folderName = mediaFile.getMediaType() == com.github.bfalmeida.photosync.model.MediaType.PHOTO ? "Photos" : "Videos";
+
+        return year + "/" + String.format("%02d", month) + "/" + folderName + "/" + mediaFile.getFileName();
     }
 
     private void configureLogging(String logLevel, String logFile) {

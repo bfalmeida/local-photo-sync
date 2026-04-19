@@ -10,6 +10,7 @@ import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.mp4.Mp4Directory;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.MediaType;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.Optional;
 
+@Component
 public class ExifMetadataService {
 
     private static final String[] IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"};

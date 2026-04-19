@@ -20,19 +20,21 @@ public class FileCopyService {
     public CopyResult copy(MediaFile mediaFile, Path destinationRoot) {
         try {
             LocalDateTime dateTime = mediaFile.getDateTime();
+            Path destinationFolder;
+
             if (dateTime == null) {
-                dateTime = LocalDateTime.now();
+                destinationFolder = destinationRoot.resolve("undated");
+            } else {
+                int year = dateTime.getYear();
+                int month = dateTime.getMonthValue();
+
+                String folderName = mediaFile.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+
+                destinationFolder = destinationRoot
+                        .resolve(String.valueOf(year))
+                        .resolve(String.format("%02d", month))
+                        .resolve(folderName);
             }
-
-            int year = dateTime.getYear();
-            int month = dateTime.getMonthValue();
-
-            String folderName = mediaFile.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
-            
-            Path destinationFolder = destinationRoot
-                    .resolve(String.valueOf(year))
-                    .resolve(String.format("%02d", month))
-                    .resolve(folderName);
 
             if (isWhatsAppFile(mediaFile.getFileName())) {
                 destinationFolder = destinationFolder.resolve(WHATSAPP_FOLDER);

@@ -1,5 +1,8 @@
 package com.github.bfalmeida.photosync.cli;
 
+import com.github.bfalmeida.photosync.service.ExifMetadataService;
+import com.github.bfalmeida.photosync.service.FileCopyService;
+import com.github.bfalmeida.photosync.service.FilenameDateExtractor;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,11 +27,17 @@ class SyncCommandTest {
 
     private SyncCommand syncCommand;
     private MediaFileScanner mediaFileScanner;
+    private FilenameDateExtractor filenameDateExtractor;
+    private ExifMetadataService exifMetadataService;
+    private FileCopyService fileCopyService;
 
     @BeforeEach
     void setUp() {
         mediaFileScanner = new MediaFileScanner();
-        syncCommand = new SyncCommand(mediaFileScanner);
+        filenameDateExtractor = new FilenameDateExtractor();
+        exifMetadataService = new ExifMetadataService();
+        fileCopyService = new FileCopyService();
+        syncCommand = new SyncCommand(mediaFileScanner, filenameDateExtractor, exifMetadataService, fileCopyService);
     }
 
     @Test
@@ -323,7 +332,7 @@ class SyncCommandTest {
 
     @Test
     void testOutputFormatIncludesDestinationPath(@TempDir Path tempDir) throws IOException {
-        Files.createFile(tempDir.resolve("IMG_20240101.jpg"));
+        Files.createFile(tempDir.resolve("IMG_20240101_123456.jpg"));
         
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         System.setOut(new PrintStream(baos));
@@ -369,7 +378,7 @@ class SyncCommandTest {
 
     @Test
     void testOutputFormatForVideoFile(@TempDir Path tempDir) throws IOException {
-        Files.createFile(tempDir.resolve("VID_20230520.mp4"));
+        Files.createFile(tempDir.resolve("VID_20230520_123456.mp4"));
         
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         System.setOut(new PrintStream(baos));
@@ -386,7 +395,7 @@ class SyncCommandTest {
         );
 
         String output = baos.toString();
-        assertThat(output).contains("2023/05/Videos/VID_20230520.mp4");
+        assertThat(output).contains("2023/05/Videos/VID_20230520_123456.mp4");
     }
 
     @Test
@@ -431,5 +440,43 @@ class SyncCommandTest {
 
         String output = baos.toString();
         assertThat(output).contains("Undated/photo.jpg");
+    }
+
+    @Test
+    void testIntegrationWithDatePatterns(@TempDir Path tempDir) throws IOException {
+        Path destDir = Files.createDirectory(tempDir.resolve("dest"));
+
+        Files.createFile(tempDir.resolve("IMG_20240315_123456.jpg"));
+        Files.createFile(tempDir.resolve("IMG_20231225_080000.png"));
+        Files.createFile(tempDir.resolve("VID_20240101_220000.mp4"));
+        Files.createFile(tempDir.resolve("2024-05-20_10-30-45.jpg"));
+        Files.createFile(tempDir.resolve("no-date-file.jpg"));
+
+        log.info("Testing sync with date patterns");
+
+        String result = syncCommand.sync(
+                tempDir.toString(),
+                destDir.toString(),
+                false,
+                true,
+                null,
+                false,
+                "DEBUG",
+                null
+        );
+
+        log.info("Dest structure: {}", Files.walk(destDir).toList());
+
+        assertThat(Files.exists(destDir.resolve("2024/03/Photos/IMG_20240315_123456.jpg")))
+            .as("IMG_20240315_123456.jpg should be in 2024/03/Photos/").isTrue();
+        assertThat(Files.exists(destDir.resolve("2023/12/Photos/IMG_20231225_080000.png")))
+            .as("IMG_20231225_080000.png should be in 2023/12/Photos/").isTrue();
+        assertThat(Files.exists(destDir.resolve("2024/01/Videos/VID_20240101_220000.mp4")))
+            .as("VID_20240101_220000.mp4 should be in 2024/01/Videos/").isTrue();
+        assertThat(Files.exists(destDir.resolve("2024/05/Photos/2024-05-20_10-30-45.jpg")))
+            .as("2024-05-20_10-30-45.jpg should be in 2024/05/Photos/").isTrue();
+
+        log.info("TASK-009 Integration test PASSED - all dated files correctly organized!");
+        log.info("Result: {}", result);
     }
 }

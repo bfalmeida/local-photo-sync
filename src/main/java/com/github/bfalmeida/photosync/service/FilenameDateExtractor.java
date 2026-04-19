@@ -1,10 +1,13 @@
 package com.github.bfalmeida.photosync.service;
 
+import org.springframework.stereotype.Component;
+
 import java.time.YearMonth;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Component
 public class FilenameDateExtractor {
 
     private static final Pattern YYYY_MM_DD_HH_MM_SS_PATTERN = 
