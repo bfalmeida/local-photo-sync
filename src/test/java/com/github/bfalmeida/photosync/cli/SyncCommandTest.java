@@ -58,7 +58,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 0 files");
         log.info("Test dry-run default: {}", result);
     }
 
@@ -75,7 +75,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 0 files");
         log.info("Test skip-undated default: {}", result);
     }
 
@@ -92,7 +92,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 0 files");
         log.info("Test log-level default: {}", result);
     }
 
@@ -109,7 +109,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -125,7 +125,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -141,7 +141,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -157,7 +157,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -173,7 +173,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -189,7 +189,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -205,7 +205,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).isEqualTo("Done: 0 copied, 0 skipped, 0 errors");
+        assertThat(result).isEqualTo("Found 0 files: 0 copied, 0 skipped, 0 errors");
     }
 
     @Test
@@ -279,7 +279,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 3 files");
         log.info("Test files listed: {}", result);
     }
 
@@ -299,7 +299,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 2 files");
         log.info("Test file count shown: {}", result);
     }
 
@@ -316,7 +316,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 0 files");
     }
 
     @Test
@@ -332,7 +332,7 @@ class SyncCommandTest {
                 null
         );
 
-        assertThat(result).contains("Done:");
+        assertThat(result).contains("Found 0 files");
     }
 
     @Test

@@ -8,16 +8,22 @@ public class MediaFile {
     private final String fileName;
     private final MediaType mediaType;
     private final LocalDateTime dateTime;
+    private final boolean whatsApp;
 
     public MediaFile(Path path, String fileName, MediaType mediaType) {
-        this(path, fileName, mediaType, null);
+        this(path, fileName, mediaType, null, false);
     }
 
     public MediaFile(Path path, String fileName, MediaType mediaType, LocalDateTime dateTime) {
+        this(path, fileName, mediaType, dateTime, false);
+    }
+
+    public MediaFile(Path path, String fileName, MediaType mediaType, LocalDateTime dateTime, boolean whatsApp) {
         this.path = path;
         this.fileName = fileName;
         this.mediaType = mediaType;
         this.dateTime = dateTime;
+        this.whatsApp = whatsApp;
     }
 
     public Path getPath() {
@@ -34,5 +40,9 @@ public class MediaFile {
 
     public LocalDateTime getDateTime() {
         return dateTime;
+    }
+
+    public boolean isWhatsApp() {
+        return whatsApp;
     }
 }

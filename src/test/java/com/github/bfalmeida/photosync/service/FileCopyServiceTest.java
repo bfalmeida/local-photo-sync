@@ -41,7 +41,7 @@ class FileCopyServiceTest {
                 LocalDateTime.of(2024, 3, 15, 10, 30)
         );
 
-        CopyResult result = service.copy(mediaFile, destDir);
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SUCCESS, result);
         Path expectedDest = destDir.resolve("2024").resolve("03").resolve("Photos").resolve("photo.jpg");
@@ -58,7 +58,7 @@ class FileCopyServiceTest {
                 LocalDateTime.of(2024, 5, 20, 14, 0)
         );
 
-        CopyResult result = service.copy(mediaFile, destDir);
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SUCCESS, result);
         Path expectedDest = destDir.resolve("2024").resolve("05").resolve("Videos").resolve("video.mp4");
@@ -72,10 +72,11 @@ class FileCopyServiceTest {
                 sourceFile,
                 "IMG-20240315-WA0001.jpg",
                 MediaType.PHOTO,
-                LocalDateTime.of(2024, 3, 15, 10, 30)
+                LocalDateTime.of(2024, 3, 15, 10, 30),
+                true
         );
 
-        CopyResult result = service.copy(mediaFile, destDir);
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SUCCESS, result);
         Path expectedDest = destDir.resolve("2024").resolve("03").resolve("Photos").resolve("WhatsApp").resolve("IMG-20240315-WA0001.jpg");
@@ -89,10 +90,11 @@ class FileCopyServiceTest {
                 sourceFile,
                 "VID-20240315-WA0001.mp4",
                 MediaType.VIDEO,
-                LocalDateTime.of(2024, 3, 15, 10, 30)
+                LocalDateTime.of(2024, 3, 15, 10, 30),
+                true
         );
 
-        CopyResult result = service.copy(mediaFile, destDir);
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SUCCESS, result);
         Path expectedDest = destDir.resolve("2024").resolve("03").resolve("Videos").resolve("WhatsApp").resolve("VID-20240315-WA0001.mp4");
@@ -109,8 +111,8 @@ class FileCopyServiceTest {
                 LocalDateTime.of(2024, 3, 15, 10, 30)
         );
 
-        service.copy(mediaFile, destDir);
-        CopyResult result = service.copy(mediaFile, destDir);
+        service.copy(mediaFile, destDir, "undated");
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SKIPPED, result);
     }
@@ -127,7 +129,7 @@ class FileCopyServiceTest {
 
         assertFalse(Files.exists(destDir.resolve("2024").resolve("03").resolve("Photos")));
 
-        service.copy(mediaFile, destDir);
+        service.copy(mediaFile, destDir, "undated");
 
         assertTrue(Files.exists(destDir.resolve("2024").resolve("03").resolve("Photos")));
     }
@@ -143,7 +145,7 @@ class FileCopyServiceTest {
                 LocalDateTime.of(2024, 3, 15, 10, 30)
         );
 
-        service.copy(mediaFile, destDir);
+        service.copy(mediaFile, destDir, "undated");
 
         Path expectedDest = destDir.resolve("2024").resolve("03").resolve("Photos").resolve("photo.jpg");
         java.nio.file.attribute.FileTime destTime = Files.getLastModifiedTime(expectedDest);
@@ -157,10 +159,11 @@ class FileCopyServiceTest {
                 sourceFile,
                 "msg-20240315-0001.jpg",
                 MediaType.PHOTO,
-                LocalDateTime.of(2024, 3, 15, 10, 30)
+                LocalDateTime.of(2024, 3, 15, 10, 30),
+                true
         );
 
-        CopyResult result = service.copy(mediaFile, destDir);
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SUCCESS, result);
         Path expectedDest = destDir.resolve("2024").resolve("03").resolve("Photos").resolve("WhatsApp").resolve("msg-20240315-0001.jpg");
@@ -177,7 +180,7 @@ class FileCopyServiceTest {
                 LocalDateTime.of(2024, 3, 15, 10, 30)
         );
 
-        CopyResult result = service.copy(mediaFile, destDir);
+        CopyResult result = service.copy(mediaFile, destDir, "undated");
 
         assertEquals(CopyResult.SUCCESS, result);
         Path expectedDest = destDir.resolve("2024").resolve("03").resolve("Photos").resolve("IMG_20240315_0001.jpg");
