@@ -207,6 +207,88 @@ Coordinate all services to execute the complete media synchronization workflow.
 
 ---
 
+### Phase 3.5: Hardening & Refinements
+
+#### TASK-014: Improve Null Handling
+**Status**: TODO | **Priority**: MEDIUM | **Issue**: #30
+**Description**: Improve null handling at CLI and parsing boundaries.
+**Acceptance Criteria**:
+- [ ] All parsing boundaries handle nulls gracefully
+- [ ] CLI input validation prevents null propagation
+**Dependencies**: TASK-004
+
+---
+
+#### TASK-015: Unify Media Path Logic
+**Status**: TODO | **Priority**: MEDIUM | **Issue**: #33
+**Description**: Unify Photos vs Videos path using `MediaType` (fix WMV etc.).
+**Acceptance Criteria**:
+- [ ] Use `MediaType` enum for all path determination
+- [ ] Ensure WMV and other edge-case extensions are handled
+**Dependencies**: TASK-008
+
+---
+
+#### TASK-016: Fix Destination Path Previews
+**Status**: TODO | **Priority**: MEDIUM | **Issue**: #32
+**Description**: Fix destination path preview: undated folder must not override dated layout.
+**Acceptance Criteria**:
+- [ ] Path preview shows correct destination even for undated files
+- [ ] No override of dated layout in preview output
+**Dependencies**: TASK-008
+
+---
+
+#### TASK-017: Implement `skipUndated` Filtering
+**Status**: TODO | **Priority**: LOW | **Issue**: #34
+**Description**: Honor `skipUndated` in sync listing (and future copy).
+**Acceptance Criteria**:
+- [ ] Files without dates are excluded when `skipUndated` is true
+- [ ] Listing and copy operations respect the flag
+**Dependencies**: TASK-005
+
+---
+
+#### TASK-018: Sync WhatsApp Folder Logic
+**Status**: TODO | **Priority**: MEDIUM | **Issue**: #37
+**Description**: Add WhatsApp subfolder to destination paths (docs parity).
+**Acceptance Criteria**:
+- [ ] Destination paths include WhatsApp subfolder where applicable
+- [ ] Logic matches the project documentation
+**Dependencies**: TASK-008
+
+---
+
+#### TASK-019: Fix Logback Configuration
+**Status**: TODO | **Priority**: LOW | **Issue**: #36
+**Description**: Fix Logback default profile: root references undefined FILE/ERROR_FILE appenders.
+**Acceptance Criteria**:
+- [ ] Appenders correctly defined in `logback-spring.xml`
+- [ ] No warnings about undefined appenders on startup
+**Dependencies**: TASK-003
+
+---
+
+#### TASK-020: Integrate JaCoCo Coverage
+**Status**: TODO | **Priority**: MEDIUM | **Issue**: #35
+**Description**: Add JaCoCo to Maven build (match docs/TESTING.md coverage target).
+**Acceptance Criteria**:
+- [ ] JaCoCo plugin configured in `pom.xml`
+- [ ] Coverage reports generated after running tests
+**Dependencies**: TASK-011
+
+---
+
+#### TASK-021: Enhance DateInfo Testing
+**Status**: TODO | **Priority**: LOW | **Issue**: #38
+**Description**: Strengthen `DateInfoTest`: undated-folder case should exercise `DateInfo` / `SyncCommand`.
+**Acceptance Criteria**:
+- [ ] New test cases for undated folder scenarios
+- [ ] Integration between `DateInfo` and `SyncCommand` verified for undated files
+**Dependencies**: TASK-011
+
+---
+
 ### Phase 4: Quality & Testing
 
 #### TASK-010: Create Test Dataset
