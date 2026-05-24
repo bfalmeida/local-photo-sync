@@ -17,13 +17,14 @@ public class FileCopyService {
 
     private static final String WHATSAPP_FOLDER = "WhatsApp";
 
-    public CopyResult copy(MediaFile mediaFile, Path destinationRoot) {
+    public CopyResult copy(MediaFile mediaFile, Path destinationRoot, String undatedFolder) {
         try {
             LocalDateTime dateTime = mediaFile.getDateTime();
             Path destinationFolder;
 
             if (dateTime == null) {
-                destinationFolder = destinationRoot.resolve("undated");
+                String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
+                destinationFolder = destinationRoot.resolve(folderName);
             } else {
                 int year = dateTime.getYear();
                 int month = dateTime.getMonthValue();
@@ -36,7 +37,7 @@ public class FileCopyService {
                         .resolve(folderName);
             }
 
-            if (isWhatsAppFile(mediaFile.getFileName())) {
+            if (mediaFile.isWhatsApp()) {
                 destinationFolder = destinationFolder.resolve(WHATSAPP_FOLDER);
             }
 
@@ -57,13 +58,5 @@ public class FileCopyService {
         } catch (IOException e) {
             return CopyResult.ERROR;
         }
-    }
-
-    private boolean isWhatsAppFile(String fileName) {
-        String lowerName = fileName.toLowerCase();
-        return lowerName.contains("whatsapp") || 
-               lowerName.contains("msg-") || 
-               lowerName.startsWith("vid-") ||
-               lowerName.startsWith("img-");
     }
 }

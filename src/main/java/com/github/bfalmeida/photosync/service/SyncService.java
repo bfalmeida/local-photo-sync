@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import com.github.bfalmeida.photosync.model.MediaType;
 
 @Service
 public class SyncService {
@@ -51,6 +52,14 @@ public class SyncService {
                 stats.incrementFound();
                 try {
                     LocalDateTime dateTime = resolveDate(file);
+                    boolean isWhatsApp = false;
+                    
+                    // Identify if it's a WhatsApp file to pass to MediaFile
+                    Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
+                        filenameDateExtractor.extract(file.getFileName());
+                    if (filenameDateOpt.isPresent()) {
+                        isWhatsApp = filenameDateOpt.get().isWhatsApp();
+                    }
 
                     if (dateTime == null) {
                         if (skipUndated) {
@@ -61,9 +70,17 @@ public class SyncService {
                         log.debug("Using undated folder for: {}", file.getFileName());
                     }
 
+                    // Determine destination path for preview
+                    Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
+                    long fileSize = Files.size(file.getPath());
+                    System.out.printf("%s -> %s (%s)%n", 
+                        file.getFileName(), 
+                        destinationPath, 
+                        formatFileSize(fileSize));
+
                     if (execute) {
-                        MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime);
-                        CopyResult result = fileCopyService.copy(fileWithDate, destination);
+                        MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
+                        CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder);
                         
                         if (result == CopyResult.SUCCESS) {
                             stats.incrementCopied();
@@ -89,12 +106,46 @@ public class SyncService {
         return stats;
     }
 
+    private Path determineDestinationPath(MediaFile file, LocalDateTime dateTime, Path destinationRoot, String undatedFolder) {
+        if (dateTime == null) {
+            String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
+            return destinationRoot.resolve(folderName).resolve(file.getFileName());
+        }
+        
+        int year = dateTime.getYear();
+        int month = dateTime.getMonthValue();
+        String typeFolder = file.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+        
+        Path path = destinationRoot.resolve(String.valueOf(year))
+                                  .resolve(String.format("%02d", month))
+                                  .resolve(typeFolder);
+        
+        // Check for WhatsApp using filename extractor as a fallback if not already set in model
+        Optional<FilenameDateExtractor.DateInfo> info = filenameDateExtractor.extract(file.getFileName());
+        if (info.isPresent() && info.get().isWhatsApp()) {
+            path = path.resolve("WhatsApp");
+        }
+        
+        return path.resolve(file.getFileName());
+    }
+
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+
     private LocalDateTime resolveDate(MediaFile mediaFile) {
         // 1. Filename Date
         Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
             filenameDateExtractor.extract(mediaFile.getFileName());
         if (filenameDateOpt.isPresent()) {
             FilenameDateExtractor.DateInfo info = filenameDateOpt.get();
+            
+            // Harmonize EXIF if filename date is present
+            exifMetadataService.harmonizeDate(mediaFile);
+            
             return LocalDateTime.of(info.getYear(), info.getMonth(), 1, 0, 0, 0);
         }
 
@@ -102,15 +153,6 @@ public class SyncService {
         Optional<LocalDateTime> exifDate = exifMetadataService.readExifDate(mediaFile);
         if (exifDate.isPresent()) {
             return exifDate.get();
-        }
-
-        // 3. Filesystem Date (Fallback)
-        try {
-            BasicFileAttributes attrs = Files.readAttributes(mediaFile.getPath(), BasicFileAttributes.class);
-            Instant instant = attrs.creationTime().toInstant();
-            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        } catch (IOException e) {
-            log.warn("Could not read filesystem attributes for {}: {}", mediaFile.getFileName(), e.getMessage());
         }
 
         return null;
