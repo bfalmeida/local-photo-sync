@@ -27,15 +27,18 @@ public class SyncService {
     private final FilenameDateExtractor filenameDateExtractor;
     private final ExifMetadataService exifMetadataService;
     private final FileCopyService fileCopyService;
+    private final ValkeyStateService valkeyStateService;
 
     public SyncService(MediaFileScanner mediaFileScanner, 
                       FilenameDateExtractor filenameDateExtractor, 
                       ExifMetadataService exifMetadataService, 
-                      FileCopyService fileCopyService) {
+                      FileCopyService fileCopyService,
+                      ValkeyStateService valkeyStateService) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
         this.exifMetadataService = exifMetadataService;
         this.fileCopyService = fileCopyService;
+        this.valkeyStateService = valkeyStateService;
     }
 
     public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated) {
@@ -84,10 +87,12 @@ public class SyncService {
                         
                         if (result == CopyResult.SUCCESS) {
                             stats.incrementCopied();
+                            valkeyStateService.saveStatus(file.getPath().toString(), "SYNCED");
                         } else if (result == CopyResult.SKIPPED) {
                             stats.incrementSkipped();
                         } else {
                             stats.incrementErrors();
+                            valkeyStateService.saveStatus(file.getPath().toString(), "ERROR");
                         }
                     } else {
                         // For dry run, we just simulate success
@@ -96,6 +101,9 @@ public class SyncService {
                 } catch (Exception e) {
                     stats.incrementErrors();
                     log.error("Error processing file {}: {}", file.getFileName(), e.getMessage());
+                    if (execute) {
+                        valkeyStateService.saveStatus(file.getPath().toString(), "ERROR");
+                    }
                 }
             }
         } catch (IOException e) {
