@@ -41,10 +41,15 @@ public class SyncService {
         this.valkeyStateService = valkeyStateService;
     }
 
-    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated) {
+    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState) {
         SyncStatistics stats = new SyncStatistics();
         
         try {
+            if (clearState) {
+                log.info("Clearing Valkey sync state as requested.");
+                valkeyStateService.clearState();
+            }
+
             if (!Files.exists(source)) {
                 log.warn("Source folder does not exist: {}", source);
                 return stats;
@@ -53,6 +58,11 @@ public class SyncService {
             List<MediaFile> mediaFiles = mediaFileScanner.scanToList(source);
             for (MediaFile file : mediaFiles) {
                 stats.incrementFound();
+                if ("SYNCED".equals(valkeyStateService.getStatus(file.getPath().toString()).orElse(null))) {
+                    log.debug("Skipping already synced file: {}", file.getFileName());
+                    stats.incrementSkipped();
+                    continue;
+                }
                 try {
                     LocalDateTime dateTime = resolveDate(file);
                     boolean isWhatsApp = false;

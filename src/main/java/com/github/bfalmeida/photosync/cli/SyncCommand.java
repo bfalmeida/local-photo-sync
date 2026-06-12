@@ -40,6 +40,7 @@ public class SyncCommand {
             @ShellOption(help = "Execute the sync operation") boolean execute,
             @ShellOption(help = "Folder for files without date metadata") String undatedFolder,
             @ShellOption(help = "Skip files without date metadata") boolean skipUndated,
+            @ShellOption(help = "Reset the Valkey sync state") boolean clearState,
             @ShellOption(defaultValue = "INFO", help = "Logging level (DEBUG, INFO, WARN, ERROR)") String logLevel,
             @ShellOption(defaultValue = "null", help = "Log file path") String logFile
     ) {
@@ -52,6 +53,7 @@ public class SyncCommand {
         log.info("  execute: {}", execute);
         log.info("  undated-folder: {}", undatedFolder);
         log.info("  skip-undated: {}", skipUndated);
+        log.info("  clear-state: {}", clearState);
 
         if (source == null || source.isBlank()) {
             return "Error: Source directory is required.";
@@ -79,7 +81,7 @@ public class SyncCommand {
             Path sourcePath = Paths.get(source);
             Path destinationPath = Paths.get(destination);
             
-            SyncStatistics stats = syncService.synchronize(sourcePath, destinationPath, willExecute, undatedFolder, skipUndated);
+            SyncStatistics stats = syncService.synchronize(sourcePath, destinationPath, willExecute, undatedFolder, skipUndated, clearState);
             
             System.out.printf("Found %d files in source folder%n", stats.getFilesFound());
             return stats.toString();

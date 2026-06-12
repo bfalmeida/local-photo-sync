@@ -22,19 +22,14 @@ class ValkeyStateServiceTest {
     private ValueOperations<String, String> valueOperations;
 
     @InjectMocks
-    private ValkeyStateService valkeyStateService;
+    private ValkeyStateService valkeyStateService = new ValkeyStateService(null, "localhost", 6379);
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         
-        // Manually set values since @Value is not handled by Mockito's @InjectMocks
-        // But ValkeyStateService constructor allows it. 
-        // Wait, @InjectMocks will use the constructor if available.
-        // But @Value are strings/ints, not beans.
-        // I should probably just instantiate it manually if I want to test those fields, 
-        // or rely on the fact that the logic doesn't depend on host/port for CRUD.
+        valkeyStateService = new ValkeyStateService(redisTemplate, "localhost", 6379);
     }
 
     @Test

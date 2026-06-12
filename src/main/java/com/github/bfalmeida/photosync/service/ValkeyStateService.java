@@ -33,6 +33,10 @@ public class ValkeyStateService {
         redisTemplate.delete(key);
     }
 
+    public void clearState() {
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+    }
+
     public String getHost() {
         return host;
     }

@@ -39,7 +39,8 @@ class SyncCommandTest {
             mediaFileScanner, 
             new FilenameDateExtractor(), 
             new ExifMetadataService(), 
-            new FileCopyService()
+            new FileCopyService(),
+            org.mockito.Mockito.mock(com.github.bfalmeida.photosync.service.ValkeyStateService.class)
         );
         
         syncCommand = new SyncCommand(mediaFileScanner, syncService);
