@@ -107,22 +107,21 @@ public class SyncService {
     }
 
     private Path determineDestinationPath(MediaFile file, LocalDateTime dateTime, Path destinationRoot, String undatedFolder) {
+        String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
+        String typeFolder = file.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+        
         if (dateTime == null) {
-            String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
-            return destinationRoot.resolve(folderName).resolve(file.getFileName());
+            return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(file.getFileName());
         }
         
         int year = dateTime.getYear();
         int month = dateTime.getMonthValue();
-        String typeFolder = file.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
         
         Path path = destinationRoot.resolve(String.valueOf(year))
                                   .resolve(String.format("%02d", month))
                                   .resolve(typeFolder);
         
-        // Check for WhatsApp using filename extractor as a fallback if not already set in model
-        Optional<FilenameDateExtractor.DateInfo> info = filenameDateExtractor.extract(file.getFileName());
-        if (info.isPresent() && info.get().isWhatsApp()) {
+        if (file.isWhatsApp()) {
             path = path.resolve("WhatsApp");
         }
         

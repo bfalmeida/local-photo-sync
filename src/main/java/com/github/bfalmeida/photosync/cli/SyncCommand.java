@@ -53,12 +53,21 @@ public class SyncCommand {
         log.info("  undated-folder: {}", undatedFolder);
         log.info("  skip-undated: {}", skipUndated);
 
-        if (!new File(source).isAbsolute() && !new File(source).exists()) {
-            log.warn("Source path is not absolute and may not exist: {}", source);
+        if (source == null || source.isBlank()) {
+            return "Error: Source directory is required.";
+        }
+        if (destination == null || destination.isBlank()) {
+            return "Error: Destination directory is required.";
         }
 
-        if (!new File(destination).isAbsolute() && !new File(destination).exists()) {
-            log.warn("Destination path is not absolute and may not exist: {}", destination);
+        File sourceFile = new File(source);
+        if (!sourceFile.exists() || !sourceFile.isDirectory()) {
+            return "Error: Source path does not exist or is not a directory.";
+        }
+
+        File destFile = new File(destination);
+        if (destFile.exists() && !destFile.isDirectory()) {
+            return "Error: Destination path exists but is not a directory.";
         }
 
         boolean willExecute = execute && !dryRun;
