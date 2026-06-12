@@ -369,6 +369,7 @@ End-to-end verification of the complete synchronization workflow.
 
 ---
 
+
 ## Task Dependencies
 
 ```
@@ -386,6 +387,9 @@ TASK-008 (File Copy)      │          ↓
                            │          ↓
                            └─→  TASK-012 (README)
                                      TASK-013 (Integration)
+                                     ↓
+                             PHASE 6: VALKEY INTEGRATION
+                             TASK-022 → TASK-023 → TASK-024 → TASK-025 → TASK-026 → TASK-027 → TASK-028
 ```
 
 ---
@@ -419,6 +423,7 @@ TASK-008 (File Copy)      │          ↓
 |------|---------|-------|
 | 2026-03-22 | 1.0.0 | Initial functional task list created |
 | 2026-03-29 | 1.0.0 | Updated task statuses - Phase 1-3 complete |
+| 2026-06-12 | 1.0.0 | Added Valkey Integration Phase (Phase 6) |
 
 ---
 
