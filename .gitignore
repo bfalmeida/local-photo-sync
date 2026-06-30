@@ -71,3 +71,4 @@ Thumbs.db
 .gradle/
 gradle-8.7/
 *.zip
+build/
