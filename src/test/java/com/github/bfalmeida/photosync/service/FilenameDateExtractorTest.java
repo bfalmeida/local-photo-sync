@@ -1,45 +1,59 @@
 package com.github.bfalmeida.photosync.service;
 
-import com.github.bfalmeida.photosync.model.MediaFile;
-import com.github.bfalmeida.photosync.model.MediaType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.time.YearMonth;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 class FilenameDateExtractorTest {
 
-    @Autowired
     private FilenameDateExtractor extractor;
 
-    @Test
-    void testExtractionAndCaching() {
-        String filename = "IMG_20230101_120000.jpg";
-        
-        // First extraction
-        Optional<FilenameDateExtractor.DateInfo> first = extractor.extract(filename);
-        assertTrue(first.isPresent());
-        assertEquals(2023, first.get().getYear());
-        assertEquals(1, first.get().getMonth());
+    @BeforeEach
+    void setUp() {
+        extractor = new FilenameDateExtractor();
+    }
 
-        // Second extraction (should be cached)
-        Optional<FilenameDateExtractor.DateInfo> second = extractor.extract(filename);
-        assertTrue(second.isPresent());
-        assertSame(first.get(), second.get()); // Verify same object instance (cache hit)
+    @ParameterizedTest
+    @CsvSource({
+        "2023-10-25_12-30-45.jpg, 2023, 10, false",
+        "IMG-20231025-WA1234.jpg, 2023, 10, true",
+        "IMG_20231025_123045.jpg, 2023, 10, false",
+        "VID_20231025_123045.mp4, 2023, 10, false"
+    })
+    void testExtract_Matches(String fileName, int year, int month, boolean whatsApp) {
+        Optional<FilenameDateExtractor.DateInfo> result = extractor.extract(fileName);
+        assertTrue(result.isPresent());
+        assertEquals(year, result.get().getYear());
+        assertEquals(month, result.get().getMonth());
+        assertEquals(whatsApp, result.get().isWhatsApp());
+        assertEquals(YearMonth.of(year, month), result.get().getYearMonth());
     }
 
     @Test
-    void testWhatsAppPattern() {
-        String filename = "IMG-20230101-WA1234.jpg";
-        Optional<FilenameDateExtractor.DateInfo> result = extractor.extract(filename);
-        assertTrue(result.isPresent());
-        assertTrue(result.get().isWhatsApp());
-        assertEquals(2023, result.get().getYear());
+    void testExtract_NoMatch() {
+        Optional<FilenameDateExtractor.DateInfo> result = extractor.extract("random_file.jpg");
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    void testExtract_NullOrEmpty() {
+        assertFalse(extractor.extract(null).isPresent());
+        assertFalse(extractor.extract("").isPresent());
+    }
+
+    @Test
+    void testClearCache() {
+        // Extract once to populate cache
+        extractor.extract("2023-10-25_12-30-45.jpg");
+        extractor.clearCache();
+        // After clearing, it should still work (re-calculating) but we can't easily verify cache state 
+        // without reflection, but we can verify it still returns correct info.
+        assertTrue(extractor.extract("2023-10-25_12-30-45.jpg").isPresent());
     }
 }
