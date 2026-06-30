@@ -3,7 +3,9 @@ package com.github.bfalmeida.photosync.service;
 import org.springframework.stereotype.Component;
 
 import java.time.YearMonth;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,11 +21,24 @@ public class FilenameDateExtractor {
     private static final Pattern VID_YYYYMMDD_HHMMSS_PATTERN = 
         Pattern.compile("VID_(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})");
 
+    private final Map<String, Optional<DateInfo>> cache = java.util.Collections.synchronizedMap(
+        new java.util.LinkedHashMap<String, Optional<DateInfo>>(100, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Optional<DateInfo>> eldest) {
+                return size() > 1000;
+            }
+        }
+    );
+
     public Optional<DateInfo> extract(String fileName) {
         if (fileName == null || fileName.isEmpty()) {
             return Optional.empty();
         }
 
+        return cache.computeIfAbsent(fileName, this::doExtract);
+    }
+
+    private Optional<DateInfo> doExtract(String fileName) {
         Matcher yyyyMmDdMatcher = YYYY_MM_DD_HH_MM_SS_PATTERN.matcher(fileName);
         if (yyyyMmDdMatcher.find()) {
             return Optional.of(new DateInfo(
@@ -61,6 +76,10 @@ public class FilenameDateExtractor {
         }
 
         return Optional.empty();
+    }
+
+    public void clearCache() {
+        cache.clear();
     }
 
     public static class DateInfo {

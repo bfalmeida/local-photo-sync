@@ -13,6 +13,9 @@ valkey:
   host: 127.0.0.1
   port: 6379
 
+sync:
+  threads: 4
+
 
 logging:
   level:

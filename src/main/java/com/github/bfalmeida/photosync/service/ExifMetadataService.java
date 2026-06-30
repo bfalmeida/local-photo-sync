@@ -9,26 +9,40 @@ import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.MediaType;
+import org.apache.commons.imaging.Imaging;
+import org.apache.commons.imaging.common.ImageMetadata;
+import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
+import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
+import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
+import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Optional;
 
 @Component
 public class ExifMetadataService {
+    private static final Logger log = LoggerFactory.getLogger(ExifMetadataService.class);
 
     private static final String[] IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"};
     private static final String[] VIDEO_EXTENSIONS = {".mp4", ".mov"};
 
     private final FilenameDateExtractor filenameDateExtractor;
 
-    public ExifMetadataService() {
-        this.filenameDateExtractor = new FilenameDateExtractor();
+    public ExifMetadataService(FilenameDateExtractor filenameDateExtractor) {
+        this.filenameDateExtractor = filenameDateExtractor;
     }
 
     public Optional<LocalDateTime> readExifDate(MediaFile mediaFile) {
@@ -91,9 +105,45 @@ public class ExifMetadataService {
     private void writeExifDate(MediaFile mediaFile, LocalDateTime date) {
         if (!isImage(mediaFile)) return; 
         
-        // Implementation requires commons-imaging or similar library.
-        // Logic structure is aligned with documentation.
-        // TODO: Integrate imaging library once network issues are resolved.
+        try {
+            File file = mediaFile.getPath().toFile();
+            File tempFile = File.createTempFile("exif_update_", ".jpg");
+            
+            TiffOutputSet outputSet = null;
+            try {
+                final ImageMetadata metadata = Imaging.getMetadata(file);
+                if (metadata instanceof JpegImageMetadata jpegMetadata) {
+                    TiffImageMetadata tiffMetadata = jpegMetadata.getExif();
+                    if (tiffMetadata != null) {
+                        outputSet = tiffMetadata.getOutputSet();
+                    }
+                }
+                
+                if (outputSet == null) {
+                    outputSet = new TiffOutputSet();
+                }
+                
+                TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
+                
+                // EXIF date format: "yyyy:MM:dd HH:mm:ss"
+                String dateString = date.format(DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss"));
+                exifDirectory.removeField(TiffTagConstants.TIFF_TAG_DATE_TIME);
+                exifDirectory.add(TiffTagConstants.TIFF_TAG_DATE_TIME, dateString);
+                
+                try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                    new ExifRewriter().updateExifMetadataLossless(file, fos, outputSet);
+                }
+                
+                Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                log.info("Successfully wrote EXIF date {} to {}", dateString, file.getName());
+            } finally {
+                if (tempFile.exists()) {
+                    tempFile.delete();
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to write EXIF date for {}: {}", mediaFile.getFileName(), e.getMessage());
+        }
     }
 
     private Optional<LocalDateTime> readImageExifDate(File file) {

@@ -41,9 +41,7 @@ public class FileCopyService {
                 destinationFolder = destinationFolder.resolve(WHATSAPP_FOLDER);
             }
 
-            if (!Files.exists(destinationFolder)) {
-                Files.createDirectories(destinationFolder);
-            }
+            Files.createDirectories(destinationFolder);
 
             Path destinationPath = destinationFolder.resolve(mediaFile.getFileName());
 
