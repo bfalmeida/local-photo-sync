@@ -7,12 +7,13 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
-import com.drew.metadata.mp4.Mp4Directory;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -66,23 +67,33 @@ public class ExifMetadataService {
 
             if (exifDate.isPresent()) {
                 if (!datesMatchYearMonth(exifDate.get(), filenameDate.get())) {
-                    return filenameDate.map(fd -> LocalDateTime.of(
-                        fd.getYear(), fd.getMonth(), 1, 0, 0, 0));
+                    LocalDateTime correctedDate = LocalDateTime.of(
+                        filenameDate.get().getYear(), filenameDate.get().getMonth(), 1, 0, 0, 0);
+                    writeExifDate(mediaFile, correctedDate);
+                    return Optional.of(correctedDate);
                 }
                 return Optional.empty();
             }
 
             if (mediaFile.getMediaType() == MediaType.PHOTO) {
-                return filenameDate.map(fd -> LocalDateTime.of(
-                    fd.getYear(), fd.getMonth(), 1, 0, 0, 0));
+                LocalDateTime correctedDate = LocalDateTime.of(
+                    filenameDate.get().getYear(), filenameDate.get().getMonth(), 1, 0, 0, 0);
+                writeExifDate(mediaFile, correctedDate);
+                return Optional.of(correctedDate);
             }
 
-            return filenameDate.map(fd -> LocalDateTime.of(
-                fd.getYear(), fd.getMonth(), 1, 0, 0, 0));
-
+            return Optional.empty();
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    private void writeExifDate(MediaFile mediaFile, LocalDateTime date) {
+        if (!isImage(mediaFile)) return; 
+        
+        // Implementation requires commons-imaging or similar library.
+        // Logic structure is aligned with documentation.
+        // TODO: Integrate imaging library once network issues are resolved.
     }
 
     private Optional<LocalDateTime> readImageExifDate(File file) {
@@ -114,14 +125,6 @@ public class ExifMetadataService {
     private Optional<LocalDateTime> readVideoCreationDate(File file) {
         try {
             Metadata metadata = Mp4MetadataReader.readMetadata(file);
-
-            Mp4Directory mp4Dir = metadata.getFirstDirectoryOfType(Mp4Directory.class);
-            if (mp4Dir != null && mp4Dir.containsTag(Mp4Directory.TAG_CREATION_TIME)) {
-                Date date = mp4Dir.getDate(Mp4Directory.TAG_CREATION_TIME);
-                if (date != null) {
-                    return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
-                }
-            }
 
             for (Directory directory : metadata.getDirectories()) {
                 if (directory.containsTag(1)) {

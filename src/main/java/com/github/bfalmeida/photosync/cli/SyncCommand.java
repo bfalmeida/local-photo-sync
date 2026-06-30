@@ -78,10 +78,12 @@ public class SyncCommand {
         }
 
         try {
+            String sessionId = java.util.UUID.randomUUID().toString();
             Path sourcePath = Paths.get(source);
             Path destinationPath = Paths.get(destination);
             
-            SyncStatistics stats = syncService.synchronize(sourcePath, destinationPath, willExecute, undatedFolder, skipUndated, clearState);
+            SyncStatistics stats = syncService.synchronize(sourcePath, destinationPath, willExecute, undatedFolder, skipUndated, clearState, sessionId);
+
             
             System.out.printf("Found %d files in source folder%n", stats.getFilesFound());
             return stats.toString();
