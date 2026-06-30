@@ -1,0 +1,5 @@
+[engine:junit-jupiter]/[class:com.github.bfalmeida.photosync.service.FilenameDateExtractorTest]/[method:testWhatsAppPattern()]
+[engine:junit-jupiter]/[class:com.github.bfalmeida.photosync.service.FilenameDateExtractorTest]/[method:testExtractionAndCaching()]
+[engine:junit-jupiter]/[class:com.github.bfalmeida.photosync.service.SyncServiceIntegrityTest]/[method:testValkeyDuplicateDetection()]
+[engine:junit-jupiter]/[class:com.github.bfalmeida.photosync.service.SyncServiceIntegrityTest]/[method:testHashingService()]
+[engine:junit-jupiter]/[class:com.github.bfalmeida.photosync.ui.SpringComposeBridgeTest]/[method:test spring context bridge()]

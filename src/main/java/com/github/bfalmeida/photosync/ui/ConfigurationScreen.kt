@@ -88,6 +88,34 @@ fun ConfigurationScreen(viewModel: ConfigurationViewModel) {
 
         Divider()
 
+        // --- Sync Strategy ---
+        Text(text = "Sync Strategy", style = MaterialTheme.typography.subtitle1)
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = config.dryRun,
+                onCheckedChange = { viewModel.updateDryRun(it) }
+            )
+            Text("Dry Run (no files will be moved)")
+        }
+
+        TextField(
+            value = config.undatedFolder,
+            onValueChange = { viewModel.updateUndatedFolder(it) },
+            label = { Text("Undated Folder Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = config.skipUndated,
+                onCheckedChange = { viewModel.updateSkipUndated(it) }
+            )
+            Text("Skip Undated Files")
+        }
+
+        Divider()
+
         // --- Performance Tuning ---
         Text(text = "Performance Tuning", style = MaterialTheme.typography.subtitle1)
         

@@ -1,6 +1,6 @@
 # local-photo-sync
 
-A command-line application to organize photos and videos by extracting dates from filenames and EXIF metadata.
+A professional-grade desktop application to organize photos and videos by extracting dates from filenames and EXIF metadata.
 
 Application being developed by AI.
 
@@ -13,103 +13,68 @@ Application being developed by AI.
 - **Robust Date Extraction**: 
     - Uses filename patterns as the primary source of truth.
     - Falls back to **EXIF metadata** for images.
+- **Professional UI**: A modern Compose for Desktop interface for effortless configuration and real-time monitoring.
 - **Safety First**:
-    - **Dry-run mode** is enabled by default to let you preview changes before any files are moved.
-- **Interactive CLI**: Powered by Spring Shell for an easy-to-use command experience.
+    - **Dry-run mode** allows you to preview exactly where files *would* go without actually moving them.
+- **High Performance**: Asynchronous sync engine with multi-threaded processing and Valkey-backed state persistence.
 
 ## 🚀 Quick Start
 
 ### Requirements
 - **Java 21**
-- **Maven 3.9+**
+- **Gradle 8.7+**
 
 ### Build and Run
 ```bash
 # 1. Build the project
-mvn clean package
+./gradlew build
 
-# 2. Launch the interactive shell
-java -jar target/local-photo-sync-1.0.0-SNAPSHOT.jar
+# 2. Launch the Desktop Application
+./gradlew run
 ```
 
-Once the shell is running, you can use the `sync` command to organize your files.
+Once the application launches, use the **Configuration Screen** to set your source and destination folders, test your Valkey connection, and execute the sync.
 
 ---
 
-## 🛠 Usage
+## 🛠 Usage Guide
 
-The primary command is `sync`. Since it's an interactive shell, you just type the command and its options.
+The application is managed through a intuitive graphical interface.
 
-### Basic Command Syntax
-`sync --source <path> --destination <path> [options]`
+### 1. Configuration
+- **Directories**: Use the "Browse" buttons to select your source (where the photos are) and destination (where you want them organized) folders.
+- **Valkey Settings**: Enter your Valkey host and password. Click **Test Connection** to verify connectivity.
+- **Sync Strategy**:
+    - **Dry Run**: When enabled, the app only simulates the sync.
+    - **Undated Folder**: Specify the name of the folder for files that cannot be dated.
+    - **Skip Undated**: When enabled, files without dates are ignored instead of being moved.
+- **Performance**: Adjust the thread count and batch size based on your hardware.
 
-### Common Scenarios
+### 2. Execution
+Click **Execute Sync**. The app will switch to the **Progress Dashboard**, providing:
+- **Real-time Stats**: Total files processed, copied, and skipped.
+- **Global Progress**: A visual bar showing the percentage of completion.
+- **Virtualized Log**: A live, color-coded stream of every file operation.
 
-#### 1. Previewing a Sync (Dry Run)
-By default, the app runs in dry-run mode. It will show you exactly where files *would* go without actually moving them.
-```bash
-sync --source /Users/bruno/Pictures/Import --destination /Users/bruno/Pictures/Organized
-```
-
-#### 2. Executing the Actual Sync
-When you are happy with the preview, add the `--execute` flag to perform the real file operations.
-```bash
-sync --source /Users/bruno/Pictures/Import --destination /Users/bruno/Pictures/Organized --execute
-```
-
-#### 3. Handling Undated Files
-If some files don't have a date in the filename or EXIF, you can specify a folder to collect them in:
-```bash
-sync --source /src --destination /dest --undatedFolder "Review_Needed" --execute
-```
-*Alternatively, use `--skipUndated` to simply ignore files that cannot be dated.*
-
-#### 4. Customizing Logs
-Need more detail for debugging? Change the log level on the fly:
-```bash
-sync --source /src --destination /dest --logLevel DEBUG
-```
-
-### Summary of Options
-
-| Option | Description | Default |
-| :--- | :--- | :--- |
-| `--source` | Directory containing the media files | (Required) |
-| `--destination` | Target directory for organized files | (Required) |
-| `--execute` | Perform actual file copy operations | `false` |
-| `--undatedFolder` | Folder name for files without date metadata | `undated` |
-| `--skipUndated` | Skip files without dates instead of moving them | `false` |
-| `--logLevel` | Logging verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`) | `INFO` |
-| `--logFile` | Path to a file for saving logs | `null` |
+### 3. Monitoring
+You can **Cancel** the sync at any time, and the app will gracefully stop and save the current state to Valkey.
 
 ---
 
 ## 📈 Progress
 
-- [x] TASK-001: Initialize Maven Project
-- [x] TASK-002: Configure Spring Shell CLI
-- [x] TASK-003: Configure Logging
-- [x] TASK-004: Define Sync Command Structure
-- [x] TASK-004b: Make log-level and log-file optional
-- [x] TASK-005: Implement File Scanner Service
-- [x] TASK-005b: Implement File Listing (Scan Only)
-- [x] TASK-006: Implement Date Extraction Service
-- [x] TASK-007: Implement EXIF Metadata Service
-- [x] TASK-008: Implement File Copy Service
-- [ ] TASK-009: Implement Main Sync Orchestrator
-- [ ] TASK-010: Create Test Dataset
-- [ ] TASK-011: Write Unit Tests
-- [x] TASK-012: Update README.md
-- [ ] TASK-013: Final Integration Test
+- [x] **Phase 1-6: Core Engine** (Hashing, Scanning, Date Extraction, Copy Logic) - **DONE**
+- [x] **Phase 7: Interface Leap** (Compose UI, MVVM Architecture, Gradle Migration) - **DONE**
+- [x] **Great Unification** (Unified Kotlin Core) - **DONE**
 
 ## 📚 Documentation
 
 For deep dives into the system, check the `docs/` directory:
 - [Architecture](docs/ARCHITECTURE.md) - System design and service responsibilities.
-- [CLI Reference](docs/CLI.md) - Detailed command usage.
+- [UI Design](docs/TDD_UI.md) - Technical design of the interface.
+- [Roadmap](docs/ROADMAP.md) - Project evolution and future targets.
+- [Task List](docs/TASKS.md) - Detailed implementation history.
 - [Destination Structure](docs/DESTINATION_STRUCTURE.md) - How your files are organized.
-- [Testing Guidelines](docs/TESTING.md) - Testing strategy and coverage.
-- [Task List](docs/TASKS.md) - Full implementation roadmap.
 
 ## 📄 License
 MIT

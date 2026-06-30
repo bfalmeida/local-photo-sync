@@ -4,10 +4,10 @@
 
 | Component | Technology |
 |-----------|------------|
-| Language | Java 21 |
-| Build Tool | Maven |
+| Language | Kotlin 1.9.23 |
+| Build Tool | Gradle 8.7 |
 | Framework | Spring Boot 3.2.x |
-| CLI | Spring Shell |
+| Interface | Compose for Desktop |
 | EXIF Processing | metadata-extractor library |
 | Testing | JUnit 5 + AssertJ |
 | Code Coverage | JaCoCo |
@@ -16,10 +16,10 @@
 
 ```
 com.github.bfalmeida.photosync
-├── cli/          # Command-line interface
-├── service/     # Business logic services
-├── model/       # Domain objects
-└── util/        # Helper utilities
+├── cli/          # Legacy CLI components (Deprecated)
+├── service/     # Business logic services (Unified Kotlin)
+├── model/       # Domain objects and state
+└── ui/          # Compose for Desktop UI & ViewModels
 ```
 
 ## Service Responsibilities
@@ -55,9 +55,9 @@ com.github.bfalmeida.photosync
 ## Data Flow
 
 ```
-User Input (CLI Command)
+User Input (Compose UI)
            ↓
-   Sync Orchestrator
+   SyncViewModel
            ↓
    ┌─────────────────────┐
    ↓                     ↓
@@ -98,9 +98,9 @@ Files are identified as WhatsApp files when the filename contains WA after the d
 
 ## Configuration Approach
 
-Configuration is managed through two mechanisms:
-- **Configuration file**: Default values for paths, logging, and options
-- **CLI flags**: Override defaults for individual operations
+Configuration is managed through a modern UI interface:
+- **Configuration Screen**: Allows users to set paths, Valkey connectivity, and sync strategies.
+- **Real-time Updates**: Settings are applied immediately to the Sync engine.
 
 The application operates in two modes:
 - **Dry-run mode**: Preview changes without making them (default)
