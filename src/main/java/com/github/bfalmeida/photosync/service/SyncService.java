@@ -41,13 +41,13 @@ public class SyncService {
         this.valkeyStateService = valkeyStateService;
     }
 
-    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState) {
+    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState, String sessionId) {
         SyncStatistics stats = new SyncStatistics();
         
         try {
             if (clearState) {
                 log.info("Clearing Valkey sync state as requested.");
-                valkeyStateService.clearState();
+                valkeyStateService.flushDb();
             }
 
             if (!Files.exists(source)) {
@@ -55,19 +55,25 @@ public class SyncService {
                 return stats;
             }
 
+            // Align with VALKEY_INTEGRATION.md: Create session and initialize stats
+            valkeyStateService.createSession(sessionId, source.toString(), destination.toString());
+
             List<MediaFile> mediaFiles = mediaFileScanner.scanToList(source);
             for (MediaFile file : mediaFiles) {
                 stats.incrementFound();
-                if ("SYNCED".equals(valkeyStateService.getStatus(file.getPath().toString()).orElse(null))) {
+                
+                String relativePath = source.relativize(file.getPath()).toString();
+                if (valkeyStateService.isProcessed(sessionId, relativePath)) {
                     log.debug("Skipping already synced file: {}", file.getFileName());
                     stats.incrementSkipped();
+                    valkeyStateService.incrementStat(sessionId, "skipped");
                     continue;
                 }
+
                 try {
                     LocalDateTime dateTime = resolveDate(file);
                     boolean isWhatsApp = false;
                     
-                    // Identify if it's a WhatsApp file to pass to MediaFile
                     Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
                         filenameDateExtractor.extract(file.getFileName());
                     if (filenameDateOpt.isPresent()) {
@@ -78,12 +84,12 @@ public class SyncService {
                         if (skipUndated) {
                             log.debug("Skipping undated file: {}", file.getFileName());
                             stats.incrementSkipped();
+                            valkeyStateService.incrementStat(sessionId, "skipped");
                             continue;
                         }
                         log.debug("Using undated folder for: {}", file.getFileName());
                     }
 
-                    // Determine destination path for preview
                     Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
                     long fileSize = Files.size(file.getPath());
                     System.out.printf("%s -> %s (%s)%n", 
@@ -97,25 +103,26 @@ public class SyncService {
                         
                         if (result == CopyResult.SUCCESS) {
                             stats.incrementCopied();
-                            valkeyStateService.saveStatus(file.getPath().toString(), "SYNCED");
+                            valkeyStateService.markAsProcessed(sessionId, relativePath);
+                            valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
+                            valkeyStateService.incrementStat(sessionId, "copied");
                         } else if (result == CopyResult.SKIPPED) {
                             stats.incrementSkipped();
+                            valkeyStateService.incrementStat(sessionId, "skipped");
                         } else {
                             stats.incrementErrors();
-                            valkeyStateService.saveStatus(file.getPath().toString(), "ERROR");
+                            valkeyStateService.incrementStat(sessionId, "errors");
                         }
                     } else {
-                        // For dry run, we just simulate success
                         stats.incrementCopied();
                     }
                 } catch (Exception e) {
                     stats.incrementErrors();
+                    valkeyStateService.incrementStat(sessionId, "errors");
                     log.error("Error processing file {}: {}", file.getFileName(), e.getMessage());
-                    if (execute) {
-                        valkeyStateService.saveStatus(file.getPath().toString(), "ERROR");
-                    }
                 }
             }
+            valkeyStateService.updateSessionStatus(sessionId, "COMPLETED");
         } catch (IOException e) {
             log.error("Error scanning source folder: {}", e.getMessage());
             stats.incrementErrors();
@@ -170,6 +177,15 @@ public class SyncService {
         Optional<LocalDateTime> exifDate = exifMetadataService.readExifDate(mediaFile);
         if (exifDate.isPresent()) {
             return exifDate.get();
+        }
+
+        // 3. Filesystem Fallback
+        try {
+            BasicFileAttributes attrs = Files.readAttributes(mediaFile.getPath(), BasicFileAttributes.class);
+            Instant instant = attrs.creationTime().toInstant();
+            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        } catch (IOException e) {
+            log.warn("Could not read filesystem attributes for {}: {}", mediaFile.getFileName(), e.getMessage());
         }
 
         return null;
