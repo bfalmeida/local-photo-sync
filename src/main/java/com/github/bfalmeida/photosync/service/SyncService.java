@@ -5,18 +5,20 @@ import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import com.github.bfalmeida.photosync.model.MediaType;
 
 @Service
@@ -28,17 +30,20 @@ public class SyncService {
     private final ExifMetadataService exifMetadataService;
     private final FileCopyService fileCopyService;
     private final ValkeyStateService valkeyStateService;
+    private final int threadCount;
 
     public SyncService(MediaFileScanner mediaFileScanner, 
                       FilenameDateExtractor filenameDateExtractor, 
                       ExifMetadataService exifMetadataService, 
                       FileCopyService fileCopyService,
-                      ValkeyStateService valkeyStateService) {
+                      ValkeyStateService valkeyStateService,
+                      @Value("${sync.threads:4}") int threadCount) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
         this.exifMetadataService = exifMetadataService;
         this.fileCopyService = fileCopyService;
         this.valkeyStateService = valkeyStateService;
+        this.threadCount = threadCount;
     }
 
     public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState, String sessionId) {
@@ -55,80 +60,95 @@ public class SyncService {
                 return stats;
             }
 
-            // Align with VALKEY_INTEGRATION.md: Create session and initialize stats
             valkeyStateService.createSession(sessionId, source.toString(), destination.toString());
 
-            List<MediaFile> mediaFiles = mediaFileScanner.scanToList(source);
-            for (MediaFile file : mediaFiles) {
-                stats.incrementFound();
-                
-                String relativePath = source.relativize(file.getPath()).toString();
-                if (valkeyStateService.isProcessed(sessionId, relativePath)) {
-                    log.debug("Skipping already synced file: {}", file.getFileName());
-                    stats.incrementSkipped();
-                    valkeyStateService.incrementStat(sessionId, "skipped");
-                    continue;
-                }
+            ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
-                try {
-                    LocalDateTime dateTime = resolveDate(file);
-                    boolean isWhatsApp = false;
-                    
-                    Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
-                        filenameDateExtractor.extract(file.getFileName());
-                    if (filenameDateOpt.isPresent()) {
-                        isWhatsApp = filenameDateOpt.get().isWhatsApp();
-                    }
-
-                    if (dateTime == null) {
-                        if (skipUndated) {
-                            log.debug("Skipping undated file: {}", file.getFileName());
-                            stats.incrementSkipped();
-                            valkeyStateService.incrementStat(sessionId, "skipped");
-                            continue;
-                        }
-                        log.debug("Using undated folder for: {}", file.getFileName());
-                    }
-
-                    Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
-                    long fileSize = Files.size(file.getPath());
-                    System.out.printf("%s -> %s (%s)%n", 
-                        file.getFileName(), 
-                        destinationPath, 
-                        formatFileSize(fileSize));
-
-                    if (execute) {
-                        MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
-                        CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder);
-                        
-                        if (result == CopyResult.SUCCESS) {
-                            stats.incrementCopied();
-                            valkeyStateService.markAsProcessed(sessionId, relativePath);
-                            valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
-                            valkeyStateService.incrementStat(sessionId, "copied");
-                        } else if (result == CopyResult.SKIPPED) {
-                            stats.incrementSkipped();
-                            valkeyStateService.incrementStat(sessionId, "skipped");
-                        } else {
-                            stats.incrementErrors();
-                            valkeyStateService.incrementStat(sessionId, "errors");
-                        }
-                    } else {
-                        stats.incrementCopied();
-                    }
-                } catch (Exception e) {
-                    stats.incrementErrors();
-                    valkeyStateService.incrementStat(sessionId, "errors");
-                    log.error("Error processing file {}: {}", file.getFileName(), e.getMessage());
-                }
+            try (var mediaFileStream = mediaFileScanner.scan(source)) {
+                mediaFileStream.forEach(file -> {
+                    executor.submit(() -> {
+                        processFile(file, source, destination, execute, undatedFolder, skipUndated, sessionId, stats);
+                    });
+                });
             }
+
+            executor.shutdown();
+            if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
+                log.warn("Executor did not terminate within 1 hour. Forcing shutdown.");
+                executor.shutdownNow();
+            }
+
             valkeyStateService.updateSessionStatus(sessionId, "COMPLETED");
-        } catch (IOException e) {
-            log.error("Error scanning source folder: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Error during synchronization: {}", e.getMessage());
             stats.incrementErrors();
         }
         
         return stats;
+    }
+
+    private void processFile(MediaFile file, Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, String sessionId, SyncStatistics stats) {
+        try {
+            stats.incrementFound();
+            
+            String relativePath = source.relativize(file.getPath()).toString();
+            if (valkeyStateService.isProcessed(sessionId, relativePath)) {
+                log.debug("Skipping already synced file: {}", file.getFileName());
+                stats.incrementSkipped();
+                valkeyStateService.incrementStat(sessionId, "skipped");
+                return;
+            }
+
+            LocalDateTime dateTime = resolveDate(file);
+            boolean isWhatsApp = false;
+            
+            Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
+                filenameDateExtractor.extract(file.getFileName());
+            if (filenameDateOpt.isPresent()) {
+                isWhatsApp = filenameDateOpt.get().isWhatsApp();
+            }
+
+            if (dateTime == null) {
+                if (skipUndated) {
+                    log.debug("Skipping undated file: {}", file.getFileName());
+                    stats.incrementSkipped();
+                    valkeyStateService.incrementStat(sessionId, "skipped");
+                    return;
+                }
+                log.debug("Using undated folder for: {}", file.getFileName());
+            }
+
+            Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
+            long fileSize = Files.size(file.getPath());
+            System.out.printf("%s -> %s (%s)%n", 
+                file.getFileName(), 
+                destinationPath, 
+                formatFileSize(fileSize));
+
+            if (execute) {
+                MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
+                CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder);
+                
+                if (result == CopyResult.SUCCESS) {
+                    stats.incrementCopied();
+                    valkeyStateService.markAsProcessed(sessionId, relativePath);
+                    valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
+                    valkeyStateService.incrementStat(sessionId, "copied");
+                } else if (result == CopyResult.SKIPPED) {
+                    stats.incrementSkipped();
+                    valkeyStateService.incrementStat(sessionId, "skipped");
+                } else {
+                    stats.incrementErrors();
+                    valkeyStateService.incrementStat(sessionId, "errors");
+                }
+            } else {
+                stats.incrementCopied();
+            }
+        } catch (Exception e) {
+            stats.incrementErrors();
+            valkeyStateService.incrementStat(sessionId, "errors");
+            log.error("Error processing file {}: {}", file.getFileName(), e.getMessage());
+        }
     }
 
     private Path determineDestinationPath(MediaFile file, LocalDateTime dateTime, Path destinationRoot, String undatedFolder) {
