@@ -60,8 +60,8 @@ public class SyncService {
             cleanupTempFiles(destination);
 
             if (clearState) {
-                log.info("Clearing Valkey sync state as requested.");
-                valkeyStateService.flushDb();
+                log.info("Clearing Valkey sync state for session {} as requested.", sessionId);
+                valkeyStateService.clearState(sessionId);
             }
 
             if (!Files.exists(source)) {

@@ -59,7 +59,7 @@ public class FileCopyService {
             }
 
             // Atomic copy implementation: Copy to temp file, verify, then move atomically
-            Path tempPath = destinationFolder.resolve(mediaFile.getFileName() + "." + UUID.randomUUID() + ".tmp");
+            Path tempPath = destinationFolder.resolve(".tmp_" + UUID.randomUUID() + "_" + mediaFile.getFileName());
             
             try {
                 // 1. Copy to temporary file

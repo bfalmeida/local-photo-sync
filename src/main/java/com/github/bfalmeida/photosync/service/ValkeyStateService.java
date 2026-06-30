@@ -85,10 +85,14 @@ public class ValkeyStateService {
         redisTemplate.delete("sync:session:" + sessionId);
         redisTemplate.delete("sync:stats:" + sessionId);
         redisTemplate.delete("sync:processed_files:" + sessionId);
+        redisTemplate.delete("sync:hashes:" + sessionId);
     }
 
+    // Removed global flushDb() to prevent accidental state wipe across sessions.
+    // Use clearState(sessionId) for session-specific cleanup.
+    @Deprecated
     public void flushDb() {
-        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+        throw new UnsupportedOperationException("Global flushDb() is disabled for safety. Use clearState(sessionId) instead.");
     }
 
     public String getHost() {
