@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 @Service
 public class FileCopyService {
@@ -58,11 +59,11 @@ public class FileCopyService {
             }
 
             // Atomic copy implementation: Copy to temp file, verify, then move atomically
-            Path tempPath = destinationFolder.resolve(mediaFile.getFileName() + ".tmp");
+            Path tempPath = destinationFolder.resolve(mediaFile.getFileName() + "." + UUID.randomUUID() + ".tmp");
             
             try {
                 // 1. Copy to temporary file
-                Files.copy(mediaFile.getPath(), tempPath, StandardCopyOption.COPY_ATTRIBUTES);
+                Files.copy(mediaFile.getPath(), tempPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
 
                 // 2. Verify temp file checksum against source hash
                 String tempHash = hashingService.calculateHash(tempPath);
