@@ -4,11 +4,11 @@ A command-line application to organize photos and videos by extracting dates fro
 
 ## Project Overview
 
-- **Language**: Java 21
+- **Language**: Java 17
 - **Build Tool**: Maven
 - **Framework**: Spring Boot 3.2.x (CLI only, no web)
 - **Package**: `com.github.bfalmeida.photosync`
-- **Version**: `1.0.0-SNAPSHOT`
+- **Version**: `1.0.0-STABLE`
 
 ---
 
@@ -189,19 +189,19 @@ Copy files to destination with proper folder structure based on date and media t
 ---
 
 #### TASK-009: Implement Main Sync Orchestrator
-**Status**: TODO | **Priority**: HIGH | **Assignee**: TBD
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
 
 **Description**: 
 Coordinate all services to execute the complete media synchronization workflow.
 
 **Acceptance Criteria**:
-- [ ] Orchestrate scanning, date extraction, EXIF handling, and file copying
-- [ ] Implement date resolution priority: filename, then EXIF, then filesystem
-- [ ] Handle undated files per CLI configuration
-- [ ] Collect and report statistics
-- [ ] Print summary at end of operation
-- [ ] Continue on non-fatal errors
-- [ ] Progress logging during operation
+- [x] Orchestrate scanning, date extraction, EXIF handling, and file copying
+- [x] Implement date resolution priority: filename, then EXIF, then filesystem
+- [x] Handle undated files per CLI configuration
+- [x] Collect and report statistics
+- [x] Print summary at end of operation
+- [x] Continue on non-fatal errors
+- [x] Progress logging during operation
 
 **Dependencies**: TASK-005, TASK-006, TASK-007, TASK-008
 
@@ -210,81 +210,81 @@ Coordinate all services to execute the complete media synchronization workflow.
 ### Phase 3.5: Hardening & Refinements
 
 #### TASK-014: Improve Null Handling
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #30
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #30
 **Description**: Improve null handling at CLI and parsing boundaries.
 **Acceptance Criteria**:
-- [ ] All parsing boundaries handle nulls gracefully
-- [ ] CLI input validation prevents null propagation
+- [x] All parsing boundaries handle nulls gracefully
+- [x] CLI input validation prevents null propagation
 **Dependencies**: TASK-004
 
 ---
 
 #### TASK-015: Unify Media Path Logic
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #33
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #33
 **Description**: Unify Photos vs Videos path using `MediaType` (fix WMV etc.).
 **Acceptance Criteria**:
-- [ ] Use `MediaType` enum for all path determination
-- [ ] Ensure WMV and other edge-case extensions are handled
+- [x] Use `MediaType` enum for all path determination
+- [x] Ensure WMV and other edge-case extensions are handled
 **Dependencies**: TASK-008
 
 ---
 
 #### TASK-016: Fix Destination Path Previews
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #32
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #32
 **Description**: Fix destination path preview: undated folder must not override dated layout.
 **Acceptance Criteria**:
-- [ ] Path preview shows correct destination even for undated files
-- [ ] No override of dated layout in preview output
+- [x] Path preview shows correct destination even for undated files
+- [x] No override of dated layout in preview output
 **Dependencies**: TASK-008
 
 ---
 
 #### TASK-017: Implement `skipUndated` Filtering
-**Status**: TODO | **Priority**: LOW | **Issue**: #34
+**Status**: DONE | **Priority**: LOW | **Issue**: #34
 **Description**: Honor `skipUndated` in sync listing (and future copy).
 **Acceptance Criteria**:
-- [ ] Files without dates are excluded when `skipUndated` is true
-- [ ] Listing and copy operations respect the flag
+- [x] Files without dates are excluded when `skipUndated` is true
+- [x] Listing and copy operations respect the flag
 **Dependencies**: TASK-005
 
 ---
 
 #### TASK-018: Sync WhatsApp Folder Logic
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #37
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #37
 **Description**: Add WhatsApp subfolder to destination paths (docs parity).
 **Acceptance Criteria**:
-- [ ] Destination paths include WhatsApp subfolder where applicable
-- [ ] Logic matches the project documentation
+- [x] Destination paths include WhatsApp subfolder where applicable
+- [x] Logic matches the project documentation
 **Dependencies**: TASK-008
 
 ---
 
 #### TASK-019: Fix Logback Configuration
-**Status**: TODO | **Priority**: LOW | **Issue**: #36
+**Status**: DONE | **Priority**: LOW | **Issue**: #36
 **Description**: Fix Logback default profile: root references undefined FILE/ERROR_FILE appenders.
 **Acceptance Criteria**:
-- [ ] Appenders correctly defined in `logback-spring.xml`
-- [ ] No warnings about undefined appenders on startup
+- [x] Appenders correctly defined in `logback-spring.xml`
+- [x] No warnings about undefined appenders on startup
 **Dependencies**: TASK-003
 
 ---
 
 #### TASK-020: Integrate JaCoCo Coverage
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #35
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #35
 **Description**: Add JaCoCo to Maven build (match docs/TESTING.md coverage target).
 **Acceptance Criteria**:
-- [ ] JaCoCo plugin configured in `pom.xml`
-- [ ] Coverage reports generated after running tests
+- [x] JaCoCo plugin configured in `pom.xml`
+- [x] Coverage reports generated after running tests
 **Dependencies**: TASK-011
 
 ---
 
 #### TASK-021: Enhance DateInfo Testing
-**Status**: TODO | **Priority**: LOW | **Issue**: #38
+**Status**: DONE | **Priority**: LOW | **Issue**: #38
 **Description**: Strengthen `DateInfoTest`: undated-folder case should exercise `DateInfo` / `SyncCommand`.
 **Acceptance Criteria**:
-- [ ] New test cases for undated folder scenarios
-- [ ] Integration between `DateInfo` and `SyncCommand` verified for undated files
+- [x] New test cases for undated folder scenarios
+- [x] Integration between `DateInfo` and `SyncCommand` verified for undated files
 **Dependencies**: TASK-011
 
 ---
@@ -292,38 +292,38 @@ Coordinate all services to execute the complete media synchronization workflow.
 ### Phase 4: Quality & Testing
 
 #### TASK-010: Create Test Dataset
-**Status**: TODO | **Priority**: MEDIUM | **Assignee**: TBD
+**Status**: DONE | **Priority**: MEDIUM | **Assignee**: AI
 
 **Description**: 
 Create sample media files for testing the synchronization workflow.
 
 **Acceptance Criteria**:
-- [ ] Multiple images with different filename date formats
-- [ ] Images with EXIF dates matching filenames
-- [ ] Images with EXIF dates not matching filenames (for harmonization)
-- [ ] Images without EXIF data
-- [ ] Video files for testing
-- [ ] WhatsApp files (photos and videos)
-- [ ] Files without parseable dates
+- [x] Multiple images with different filename date formats
+- [x] Images with EXIF dates matching filenames
+- [x] Images with EXIF dates not matching filenames (for harmonization)
+- [x] Images without EXIF data
+- [x] Video files for testing
+- [x] WhatsApp files (photos and videos)
+- [x] Files without parseable dates
 
 **Dependencies**: TASK-007
 
 ---
 
 #### TASK-011: Write Unit Tests
-**Status**: TODO | **Priority**: HIGH | **Assignee**: TBD
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
 
 **Description**: 
 Write comprehensive tests for all services to ensure correct behavior.
 
 **Acceptance Criteria**:
-- [ ] Tests for date pattern extraction from filenames
-- [ ] Tests for EXIF read/update scenarios
-- [ ] Tests for file copying and duplicate handling
-- [ ] Tests for folder structure creation
-- [ ] Tests for file discovery
-- [ ] Tests for full synchronization workflow
-- [ ] Minimum 80% line coverage across all services
+- [x] Tests for date pattern extraction from filenames
+- [x] Tests for EXIF read/update scenarios
+- [x] Tests for file copying and duplicate handling
+- [x] Tests for folder structure creation
+- [x] Tests for file discovery
+- [x] Tests for full synchronization workflow
+- [x] Minimum 80% line coverage across all services
 
 **Dependencies**: TASK-010
 
@@ -332,7 +332,7 @@ Write comprehensive tests for all services to ensure correct behavior.
 ### Phase 5: Documentation
 
 #### TASK-012: Update README.md
-**Status**: IN PROGRESS | **Priority**: MEDIUM | **Assignee**: AI
+**Status**: DONE | **Priority**: MEDIUM | **Assignee**: AI
 
 **Description**: 
 Write comprehensive user documentation with usage examples.
@@ -340,8 +340,8 @@ Write comprehensive user documentation with usage examples.
 **Acceptance Criteria**:
 - [x] Build and run instructions
 - [x] All CLI options documented
-- [ ] Example commands with expected output
-- [ ] Configuration options explained
+- [x] Example commands with expected output
+- [x] Configuration options explained
 - [x] System requirements listed
 
 **Dependencies**: TASK-004
@@ -349,26 +349,57 @@ Write comprehensive user documentation with usage examples.
 ---
 
 #### TASK-013: Final Integration Test
-**Status**: TODO | **Priority**: HIGH | **Assignee**: TBD
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
 
 **Description**: 
 End-to-end verification of the complete synchronization workflow.
 
 **Acceptance Criteria**:
-- [ ] Dry-run produces no file changes
-- [ ] Execute creates correct directory structure
-- [ ] Files placed in correct year/month folders
-- [ ] Photos and Videos correctly separated
-- [ ] WhatsApp files in WhatsApp subfolder
-- [ ] Duplicate files skipped silently
-- [ ] EXIF harmonization verified
-- [ ] Undated files handled per configuration
-- [ ] Summary statistics accurate
+- [x] Dry-run produces no file changes
+- [x] Execute creates correct directory structure
+- [x] Files placed in correct year/month folders
+- [x] Photos and Videos correctly separated
+- [x] WhatsApp files in WhatsApp subfolder
+- [x] Duplicate files skipped silently
+- [x] EXIF harmonization verified
+- [x] Undated files handled per configuration
+- [x] Summary statistics accurate
 
 **Dependencies**: TASK-009, TASK-011
 
 ---
 
+### Phase 6: Content-Addressable Sync (Valkey)
+
+#### TASK-022: Implement Hashing Service
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
+**Description**: Implement SHA-256 hashing for file content identification.
+
+#### TASK-023: Integrate Valkey State Store
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
+**Description**: Use Valkey/Redis to track processed files and prevent redundant operations.
+
+#### TASK-024: Implement Atomic Safe-Move Transport
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
+**Description**: Ensure file moves are atomic to prevent data loss during crashes.
+
+#### TASK-025: Implement Sync State Validation
+**Status**: DONE | **Priority**: MEDIUM | **Assignee**: AI
+**Description**: Verify state consistency between Valkey and filesystem.
+
+#### TASK-026: Optimize State Lookups
+**Status**: DONE | **Priority**: MEDIUM | **Assignee**: AI
+**Description**: Improve performance of duplicate checks using Valkey sets.
+
+#### TASK-027: Implement State Cleanup Utility
+**Status**: DONE | **Priority**: LOW | **Assignee**: AI
+**Description**: Provide CLI command to clear or prune the sync state.
+
+#### TASK-028: Final Validation of Content-Addressable Sync
+**Status**: DONE | **Priority**: HIGH | **Assignee**: AI
+**Description**: End-to-end test of SHA-256 sync workflow.
+
+---
 
 ## Task Dependencies
 
@@ -398,12 +429,12 @@ TASK-008 (File Copy)      │          ↓
 
 | Property | Value |
 |----------|-------|
-| Language | Java 21 |
+| Language | Java 17 |
 | Build Tool | Maven |
 | Framework | Spring Boot 3.2.x |
 | CLI | Spring Shell |
 | Package | com.github.bfalmeida.photosync |
-| Version | 1.0.0-SNAPSHOT |
+| Version | 1.0.0-STABLE |
 | Coverage Target | 80%+ |
 
 ---
@@ -424,6 +455,7 @@ TASK-008 (File Copy)      │          ↓
 | 2026-03-22 | 1.0.0 | Initial functional task list created |
 | 2026-03-29 | 1.0.0 | Updated task statuses - Phase 1-3 complete |
 | 2026-06-12 | 1.0.0 | Added Valkey Integration Phase (Phase 6) |
+| 2026-06-30 | 1.0.0-STABLE | Synchronized backlog with reality; marked all v1 features DONE |
 
 ---
 
