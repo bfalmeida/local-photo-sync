@@ -143,25 +143,25 @@ public class SyncService {
                 destinationPath, 
                 formatFileSize(fileSize));
 
-            if (execute) {
-                MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
-                CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder);
-                
-                if (result == CopyResult.SUCCESS) {
-                    stats.incrementCopied();
-                    valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
-                    valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
-                    valkeyStateService.incrementStat(sessionId, "copied");
-                } else if (result == CopyResult.SKIPPED) {
-                    stats.incrementSkipped();
-                    valkeyStateService.incrementStat(sessionId, "skipped");
+                if (execute) {
+                    MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
+                    CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder, fileHash);
+                    
+                    if (result == CopyResult.SUCCESS) {
+                        stats.incrementCopied();
+                        valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
+                        valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
+                        valkeyStateService.incrementStat(sessionId, "copied");
+                    } else if (result == CopyResult.SKIPPED) {
+                        stats.incrementSkipped();
+                        valkeyStateService.incrementStat(sessionId, "skipped");
+                    } else {
+                        stats.incrementErrors();
+                        valkeyStateService.incrementStat(sessionId, "errors");
+                    }
                 } else {
-                    stats.incrementErrors();
-                    valkeyStateService.incrementStat(sessionId, "errors");
+                    stats.incrementCopied();
                 }
-            } else {
-                stats.incrementCopied();
-            }
         } catch (Exception e) {
             stats.incrementErrors();
             valkeyStateService.incrementStat(sessionId, "errors");
