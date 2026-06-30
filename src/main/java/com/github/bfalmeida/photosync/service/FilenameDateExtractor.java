@@ -21,7 +21,14 @@ public class FilenameDateExtractor {
     private static final Pattern VID_YYYYMMDD_HHMMSS_PATTERN = 
         Pattern.compile("VID_(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})");
 
-    private final Map<String, Optional<DateInfo>> cache = new ConcurrentHashMap<>();
+    private final Map<String, Optional<DateInfo>> cache = java.util.Collections.synchronizedMap(
+        new java.util.LinkedHashMap<String, Optional<DateInfo>>(100, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Optional<DateInfo>> eldest) {
+                return size() > 1000;
+            }
+        }
+    );
 
     public Optional<DateInfo> extract(String fileName) {
         if (fileName == null || fileName.isEmpty()) {

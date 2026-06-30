@@ -62,20 +62,26 @@ public class SyncService {
 
             valkeyStateService.createSession(sessionId, source.toString(), destination.toString());
 
-            ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+            java.util.concurrent.ThreadPoolExecutor executor = new java.util.concurrent.ThreadPoolExecutor(
+                threadCount, threadCount, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(1000),
+                new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy()
+            );
 
-            try (var mediaFileStream = mediaFileScanner.scan(source)) {
-                mediaFileStream.forEach(file -> {
-                    executor.submit(() -> {
-                        processFile(file, source, destination, execute, undatedFolder, skipUndated, sessionId, stats);
+            try {
+                try (var mediaFileStream = mediaFileScanner.scan(source)) {
+                    mediaFileStream.forEach(file -> {
+                        executor.submit(() -> {
+                            processFile(file, source, destination, execute, undatedFolder, skipUndated, sessionId, stats);
+                        });
                     });
-                });
-            }
-
-            executor.shutdown();
-            if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
-                log.warn("Executor did not terminate within 1 hour. Forcing shutdown.");
-                executor.shutdownNow();
+                }
+            } finally {
+                executor.shutdown();
+                if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
+                    log.warn("Executor did not terminate within 1 hour. Forcing shutdown.");
+                    executor.shutdownNow();
+                }
             }
 
             valkeyStateService.updateSessionStatus(sessionId, "COMPLETED");
