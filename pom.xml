@@ -17,6 +17,8 @@
     <packaging>jar</packaging>
 
     <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <java.version>17</java.version>
         <spring-shell.version>3.2.4</spring-shell.version>
         <metadata-extractor.version>2.19.0</metadata-extractor.version>

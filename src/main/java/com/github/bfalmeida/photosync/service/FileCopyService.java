@@ -49,7 +49,10 @@ public class FileCopyService {
                 return CopyResult.SKIPPED;
             }
 
-            Files.copy(mediaFile.getPath(), destinationPath, StandardCopyOption.COPY_ATTRIBUTES);
+            // Atomic copy implementation: Copy to temp file then move atomically
+            Path tempPath = destinationFolder.resolve(mediaFile.getFileName() + ".tmp");
+            Files.copy(mediaFile.getPath(), tempPath, StandardCopyOption.COPY_ATTRIBUTES);
+            Files.move(tempPath, destinationPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 
             return CopyResult.SUCCESS;
 

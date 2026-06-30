@@ -52,13 +52,21 @@ public class ValkeyStateService {
     }
 
     // --- Processed Files Tracking ---
-
-    public void markAsProcessed(String sessionId, String relativePath) {
+    
+    public void markAsProcessed(String sessionId, String relativePath, String fileHash) {
         redisTemplate.opsForSet().add("sync:processed_files:" + sessionId, relativePath);
+        if (fileHash != null) {
+            redisTemplate.opsForSet().add("sync:hashes:" + sessionId, fileHash);
+        }
     }
-
+    
     public boolean isProcessed(String sessionId, String relativePath) {
         return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember("sync:processed_files:" + sessionId, relativePath));
+    }
+
+    public boolean isDuplicate(String sessionId, String fileHash) {
+        if (fileHash == null) return false;
+        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember("sync:hashes:" + sessionId, fileHash));
     }
 
     public long getProcessedCount(String sessionId) {

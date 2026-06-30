@@ -30,6 +30,7 @@ public class SyncService {
     private final ExifMetadataService exifMetadataService;
     private final FileCopyService fileCopyService;
     private final ValkeyStateService valkeyStateService;
+    private final HashingService hashingService;
     private final int threadCount;
 
     public SyncService(MediaFileScanner mediaFileScanner, 
@@ -37,12 +38,14 @@ public class SyncService {
                       ExifMetadataService exifMetadataService, 
                       FileCopyService fileCopyService,
                       ValkeyStateService valkeyStateService,
+                      HashingService hashingService,
                       @Value("${sync.threads:4}") int threadCount) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
         this.exifMetadataService = exifMetadataService;
         this.fileCopyService = fileCopyService;
         this.valkeyStateService = valkeyStateService;
+        this.hashingService = hashingService;
         this.threadCount = threadCount;
     }
 
@@ -105,6 +108,15 @@ public class SyncService {
                 return;
             }
 
+            // Calculate hash for content-based duplicate detection
+            String fileHash = hashingService.calculateHash(file.getPath());
+            if (valkeyStateService.isDuplicate(sessionId, fileHash)) {
+                log.debug("Skipping duplicate file: {}", file.getFileName());
+                stats.incrementSkipped();
+                valkeyStateService.incrementStat(sessionId, "skipped");
+                return;
+            }
+
             LocalDateTime dateTime = resolveDate(file);
             boolean isWhatsApp = false;
             
@@ -137,7 +149,7 @@ public class SyncService {
                 
                 if (result == CopyResult.SUCCESS) {
                     stats.incrementCopied();
-                    valkeyStateService.markAsProcessed(sessionId, relativePath);
+                    valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
                     valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
                     valkeyStateService.incrementStat(sessionId, "copied");
                 } else if (result == CopyResult.SKIPPED) {
