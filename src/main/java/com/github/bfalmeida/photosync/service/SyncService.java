@@ -12,8 +12,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitOption;
 import java.time.ZoneId;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +34,7 @@ public class SyncService {
     private final ExifMetadataService exifMetadataService;
     private final FileCopyService fileCopyService;
     private final ValkeyStateService valkeyStateService;
+    private final HashingService hashingService;
     private final int threadCount;
 
     public SyncService(MediaFileScanner mediaFileScanner, 
@@ -37,12 +42,14 @@ public class SyncService {
                       ExifMetadataService exifMetadataService, 
                       FileCopyService fileCopyService,
                       ValkeyStateService valkeyStateService,
+                      HashingService hashingService,
                       @Value("${sync.threads:4}") int threadCount) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
         this.exifMetadataService = exifMetadataService;
         this.fileCopyService = fileCopyService;
         this.valkeyStateService = valkeyStateService;
+        this.hashingService = hashingService;
         this.threadCount = threadCount;
     }
 
@@ -50,9 +57,11 @@ public class SyncService {
         SyncStatistics stats = new SyncStatistics();
         
         try {
+            cleanupTempFiles(destination);
+
             if (clearState) {
-                log.info("Clearing Valkey sync state as requested.");
-                valkeyStateService.flushDb();
+                log.info("Clearing Valkey sync state for session {} as requested.", sessionId);
+                valkeyStateService.clearState(sessionId);
             }
 
             if (!Files.exists(source)) {
@@ -105,6 +114,15 @@ public class SyncService {
                 return;
             }
 
+            // Calculate hash for content-based duplicate detection
+            String fileHash = hashingService.calculateHash(file.getPath());
+            if (valkeyStateService.isDuplicate(sessionId, fileHash)) {
+                log.debug("Skipping duplicate file: {}", file.getFileName());
+                stats.incrementSkipped();
+                valkeyStateService.incrementStat(sessionId, "skipped");
+                return;
+            }
+
             LocalDateTime dateTime = resolveDate(file);
             boolean isWhatsApp = false;
             
@@ -131,25 +149,25 @@ public class SyncService {
                 destinationPath, 
                 formatFileSize(fileSize));
 
-            if (execute) {
-                MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
-                CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder);
-                
-                if (result == CopyResult.SUCCESS) {
-                    stats.incrementCopied();
-                    valkeyStateService.markAsProcessed(sessionId, relativePath);
-                    valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
-                    valkeyStateService.incrementStat(sessionId, "copied");
-                } else if (result == CopyResult.SKIPPED) {
-                    stats.incrementSkipped();
-                    valkeyStateService.incrementStat(sessionId, "skipped");
+                if (execute) {
+                    MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
+                    CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder, fileHash);
+                    
+                    if (result == CopyResult.SUCCESS) {
+                        stats.incrementCopied();
+                        valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
+                        valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
+                        valkeyStateService.incrementStat(sessionId, "copied");
+                    } else if (result == CopyResult.SKIPPED) {
+                        stats.incrementSkipped();
+                        valkeyStateService.incrementStat(sessionId, "skipped");
+                    } else {
+                        stats.incrementErrors();
+                        valkeyStateService.incrementStat(sessionId, "errors");
+                    }
                 } else {
-                    stats.incrementErrors();
-                    valkeyStateService.incrementStat(sessionId, "errors");
+                    stats.incrementCopied();
                 }
-            } else {
-                stats.incrementCopied();
-            }
         } catch (Exception e) {
             stats.incrementErrors();
             valkeyStateService.incrementStat(sessionId, "errors");
@@ -180,10 +198,29 @@ public class SyncService {
     }
 
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024) return String.format("%s B", bytes);
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+
+    private void cleanupTempFiles(Path destination) {
+        if (!Files.exists(destination)) return;
+        log.info("Cleaning up temporary files in destination root: {}", destination);
+        try {
+            Files.walkFileTree(destination, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    if (file.getFileName().toString().endsWith(".tmp")) {
+                        log.debug("Deleting orphaned temp file: {}", file);
+                        Files.delete(file);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            log.error("Error during temp file cleanup: {}", e.getMessage());
+        }
     }
 
     private LocalDateTime resolveDate(MediaFile mediaFile) {

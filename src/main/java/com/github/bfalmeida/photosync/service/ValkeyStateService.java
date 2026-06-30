@@ -52,13 +52,21 @@ public class ValkeyStateService {
     }
 
     // --- Processed Files Tracking ---
-
-    public void markAsProcessed(String sessionId, String relativePath) {
+    
+    public void markAsProcessed(String sessionId, String relativePath, String fileHash) {
         redisTemplate.opsForSet().add("sync:processed_files:" + sessionId, relativePath);
+        if (fileHash != null) {
+            redisTemplate.opsForSet().add("sync:hashes:" + sessionId, fileHash);
+        }
     }
-
+    
     public boolean isProcessed(String sessionId, String relativePath) {
         return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember("sync:processed_files:" + sessionId, relativePath));
+    }
+
+    public boolean isDuplicate(String sessionId, String fileHash) {
+        if (fileHash == null) return false;
+        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember("sync:hashes:" + sessionId, fileHash));
     }
 
     public long getProcessedCount(String sessionId) {
@@ -77,10 +85,14 @@ public class ValkeyStateService {
         redisTemplate.delete("sync:session:" + sessionId);
         redisTemplate.delete("sync:stats:" + sessionId);
         redisTemplate.delete("sync:processed_files:" + sessionId);
+        redisTemplate.delete("sync:hashes:" + sessionId);
     }
 
+    // Removed global flushDb() to prevent accidental state wipe across sessions.
+    // Use clearState(sessionId) for session-specific cleanup.
+    @Deprecated
     public void flushDb() {
-        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+        throw new UnsupportedOperationException("Global flushDb() is disabled for safety. Use clearState(sessionId) instead.");
     }
 
     public String getHost() {
