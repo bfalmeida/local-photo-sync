@@ -123,7 +123,7 @@ public class ExifMetadataService {
                     outputSet = new TiffOutputSet();
                 }
                 
-                TiffOutputDirectory exifDirectory = outputSet.getExifDirectory();
+                TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
                 
                 // EXIF date format: "yyyy:MM:dd HH:mm:ss"
                 String dateString = date.format(DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss"));
