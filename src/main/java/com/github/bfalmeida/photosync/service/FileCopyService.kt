@@ -36,12 +36,7 @@ class FileCopyService(private val hashingService: HashingService) {
                 val year = dateTime.year
                 val month = dateTime.monthValue
 
-                val folderName = when (mediaFile.mediaType) {
-                    MediaType.PHOTO -> "Photos"
-                    MediaType.VIDEO -> "Videos"
-                    MediaType.RAW -> "raw"
-                    else -> "unknown"
-                }
+                val folderName = when (mediaFile.mediaType) { MediaType.PHOTO -> "Photos"; MediaType.VIDEO -> "Videos"; MediaType.RAW -> "raw"; else -> "unknown" }
 
                 destinationFolder = destinationRoot
                     .resolve(year.toString())
