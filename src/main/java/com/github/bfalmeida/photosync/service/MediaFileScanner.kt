@@ -16,7 +16,10 @@ class MediaFileScanner {
         private val PHOTO_EXTENSIONS = setOf(
             "jpg", "jpeg", "png", "gif", "bmp", "heic", "heif"
         )
-
+        private val RAW_EXTENSIONS = setOf(
+            "cr2", "cr3", "nef", "arw", "dng", "orf", "srw",
+            "raf", "rw2", "pef", "sr2", "srf", "rwl", "x3f"
+        )
         private val VIDEO_EXTENSIONS = setOf(
             "mp4", "mov", "avi", "mkv", "wmv"
         )
@@ -62,6 +65,7 @@ class MediaFileScanner {
     private fun getMediaType(extension: String): MediaType? {
         return when {
             PHOTO_EXTENSIONS.contains(extension) -> MediaType.PHOTO
+            RAW_EXTENSIONS.contains(extension) -> MediaType.RAW
             VIDEO_EXTENSIONS.contains(extension) -> MediaType.VIDEO
             else -> null
         }

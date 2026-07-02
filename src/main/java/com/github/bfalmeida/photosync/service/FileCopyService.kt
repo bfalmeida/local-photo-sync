@@ -24,13 +24,22 @@ class FileCopyService(private val hashingService: HashingService) {
             var destinationFolder: Path
 
             if (dateTime == null) {
+                val typeFolder = when (mediaFile.mediaType) {
+                    MediaType.PHOTO -> "Photos"
+                    MediaType.VIDEO -> "Videos"
+                    MediaType.RAW -> "raw"
+                }
                 val folderName = if (undatedFolder.isNullOrEmpty()) "undated" else undatedFolder
-                destinationFolder = destinationRoot.resolve(folderName)
+                destinationFolder = destinationRoot.resolve(folderName).resolve(typeFolder)
             } else {
                 val year = dateTime.year
                 val month = dateTime.monthValue
 
-                val folderName = if (mediaFile.mediaType == MediaType.PHOTO) "Photos" else "Videos"
+                val folderName = when (mediaFile.mediaType) {
+                    MediaType.PHOTO -> "Photos"
+                    MediaType.VIDEO -> "Videos"
+                    MediaType.RAW -> "raw"
+                }
 
                 destinationFolder = destinationRoot
                     .resolve(year.toString())

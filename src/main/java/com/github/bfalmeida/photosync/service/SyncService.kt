@@ -232,7 +232,11 @@ class SyncService(
 
     private fun determineDestinationPath(file: MediaFile, dateTime: LocalDateTime?, destinationRoot: Path, undatedFolder: String?): Path {
         val folderName = if (undatedFolder.isNullOrEmpty()) "undated" else undatedFolder
-        val typeFolder = if (file.mediaType == MediaType.PHOTO) "Photos" else "Videos"
+        val typeFolder = when (file.mediaType) {
+            MediaType.PHOTO -> "Photos"
+            MediaType.VIDEO -> "Videos"
+            MediaType.RAW -> "raw"
+        }
 
         if (dateTime == null) {
             return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(file.fileName)
