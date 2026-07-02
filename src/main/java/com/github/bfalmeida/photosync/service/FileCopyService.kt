@@ -28,6 +28,7 @@ class FileCopyService(private val hashingService: HashingService) {
                     MediaType.PHOTO -> "Photos"
                     MediaType.VIDEO -> "Videos"
                     MediaType.RAW -> "raw"
+                    else -> "unknown"
                 }
                 val folderName = if (undatedFolder.isNullOrEmpty()) "undated" else undatedFolder
                 destinationFolder = destinationRoot.resolve(folderName).resolve(typeFolder)
@@ -39,6 +40,7 @@ class FileCopyService(private val hashingService: HashingService) {
                     MediaType.PHOTO -> "Photos"
                     MediaType.VIDEO -> "Videos"
                     MediaType.RAW -> "raw"
+                    else -> "unknown"
                 }
 
                 destinationFolder = destinationRoot

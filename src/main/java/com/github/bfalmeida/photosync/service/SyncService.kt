@@ -236,6 +236,7 @@ class SyncService(
             MediaType.PHOTO -> "Photos"
             MediaType.VIDEO -> "Videos"
             MediaType.RAW -> "raw"
+            else -> "unknown"
         }
 
         if (dateTime == null) {
