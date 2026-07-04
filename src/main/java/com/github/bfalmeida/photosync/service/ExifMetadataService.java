@@ -47,7 +47,7 @@ public class ExifMetadataService {
 
     public Optional<LocalDateTime> readExifDate(MediaFile mediaFile) {
         try {
-            File file = mediaFile.getPath().toFile();
+            File file = mediaFile.path().toFile();
             if (!file.exists() || !file.canRead()) {
                 return Optional.empty();
             }
@@ -65,13 +65,13 @@ public class ExifMetadataService {
 
     public Optional<LocalDateTime> harmonizeDate(MediaFile mediaFile) {
         try {
-            File file = mediaFile.getPath().toFile();
+            File file = mediaFile.path().toFile();
             if (!file.exists() || !file.canRead()) {
                 return Optional.empty();
             }
 
             Optional<FilenameDateExtractor.DateInfo> filenameDate = 
-                filenameDateExtractor.extract(mediaFile.getFileName());
+                filenameDateExtractor.extract(mediaFile.fileName());
 
             if (filenameDate.isEmpty()) {
                 return Optional.empty();
@@ -82,16 +82,16 @@ public class ExifMetadataService {
             if (exifDate.isPresent()) {
                 if (!datesMatchYearMonth(exifDate.get(), filenameDate.get())) {
                     LocalDateTime correctedDate = LocalDateTime.of(
-                        filenameDate.get().getYear(), filenameDate.get().getMonth(), 1, 0, 0, 0);
+                        filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
                     writeExifDate(mediaFile, correctedDate);
                     return Optional.of(correctedDate);
                 }
                 return Optional.empty();
             }
 
-            if (mediaFile.getMediaType() == MediaType.PHOTO) {
+            if (mediaFile.mediaType() == MediaType.PHOTO) {
                 LocalDateTime correctedDate = LocalDateTime.of(
-                    filenameDate.get().getYear(), filenameDate.get().getMonth(), 1, 0, 0, 0);
+                    filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
                 writeExifDate(mediaFile, correctedDate);
                 return Optional.of(correctedDate);
             }
@@ -106,7 +106,7 @@ public class ExifMetadataService {
         if (!isImage(mediaFile)) return; 
         
         try {
-            File file = mediaFile.getPath().toFile();
+            File file = mediaFile.path().toFile();
             File tempFile = File.createTempFile("exif_update_", ".jpg");
             
             TiffOutputSet outputSet = null;
@@ -142,7 +142,7 @@ public class ExifMetadataService {
                 }
             }
         } catch (Exception e) {
-            log.error("Failed to write EXIF date for {}: {}", mediaFile.getFileName(), e.getMessage());
+            log.error("Failed to write EXIF date for {}: {}", mediaFile.fileName(), e.getMessage());
         }
     }
 
@@ -192,7 +192,7 @@ public class ExifMetadataService {
     }
 
     private boolean isImage(MediaFile mediaFile) {
-        String lowerName = mediaFile.getFileName().toLowerCase();
+        String lowerName = mediaFile.fileName().toLowerCase();
         for (String ext : IMAGE_EXTENSIONS) {
             if (lowerName.endsWith(ext)) {
                 return true;
@@ -202,7 +202,7 @@ public class ExifMetadataService {
     }
 
     private boolean isVideo(MediaFile mediaFile) {
-        String lowerName = mediaFile.getFileName().toLowerCase();
+        String lowerName = mediaFile.fileName().toLowerCase();
         for (String ext : VIDEO_EXTENSIONS) {
             if (lowerName.endsWith(ext)) {
                 return true;
@@ -212,7 +212,7 @@ public class ExifMetadataService {
     }
 
     private boolean datesMatchYearMonth(LocalDateTime exifDate, FilenameDateExtractor.DateInfo filenameDate) {
-        return exifDate.getYear() == filenameDate.getYear() && 
-               exifDate.getMonthValue() == filenameDate.getMonth();
+        return exifDate.getYear() == filenameDate.year() && 
+               exifDate.getMonthValue() == filenameDate.month();
     }
 }

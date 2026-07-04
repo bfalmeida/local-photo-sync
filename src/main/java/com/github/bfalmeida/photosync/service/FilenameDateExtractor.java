@@ -82,30 +82,8 @@ public class FilenameDateExtractor {
         cache.clear();
     }
 
-    public static class DateInfo {
-        private final int year;
-        private final int month;
-        private final boolean whatsApp;
-
-        public DateInfo(int year, int month, boolean whatsApp) {
-            this.year = year;
-            this.month = month;
-            this.whatsApp = whatsApp;
-        }
-
-        public int getYear() {
-            return year;
-        }
-
-        public int getMonth() {
-            return month;
-        }
-
-        public boolean isWhatsApp() {
-            return whatsApp;
-        }
-
-        public YearMonth getYearMonth() {
+    public record DateInfo(int year, int month, boolean whatsApp) {
+        public YearMonth yearMonth() {
             return YearMonth.of(year, month);
         }
     }

@@ -27,7 +27,7 @@ public class FileCopyService {
 
     public CopyResult copy(MediaFile mediaFile, Path destinationRoot, String undatedFolder, String sourceHash) {
         try {
-            LocalDateTime dateTime = mediaFile.getDateTime();
+            LocalDateTime dateTime = mediaFile.dateTime();
             Path destinationFolder;
 
             if (dateTime == null) {
@@ -37,7 +37,7 @@ public class FileCopyService {
                 int year = dateTime.getYear();
                 int month = dateTime.getMonthValue();
 
-                String folderName = mediaFile.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+                String folderName = mediaFile.mediaType() == MediaType.PHOTO ? "Photos" : "Videos";
 
                 destinationFolder = destinationRoot
                         .resolve(String.valueOf(year))
@@ -45,24 +45,24 @@ public class FileCopyService {
                         .resolve(folderName);
             }
 
-            if (mediaFile.isWhatsApp()) {
+            if (mediaFile.whatsApp()) {
                 destinationFolder = destinationFolder.resolve(WHATSAPP_FOLDER);
             }
 
             Files.createDirectories(destinationFolder);
 
-            Path destinationPath = destinationFolder.resolve(mediaFile.getFileName());
+            Path destinationPath = destinationFolder.resolve(mediaFile.fileName());
 
             if (Files.exists(destinationPath)) {
                 return CopyResult.SKIPPED;
             }
 
             // Atomic copy implementation: Copy to temp file, verify, then move atomically
-            Path tempPath = destinationFolder.resolve(mediaFile.getFileName() + ".tmp");
+            Path tempPath = destinationFolder.resolve(mediaFile.fileName() + ".tmp");
             
             try {
                 // 1. Copy to temporary file
-                Files.copy(mediaFile.getPath(), tempPath, StandardCopyOption.COPY_ATTRIBUTES);
+                Files.copy(mediaFile.path(), tempPath, StandardCopyOption.COPY_ATTRIBUTES);
 
                 // 2. Verify temp file checksum against source hash
                 String tempHash = hashingService.calculateHash(tempPath);
@@ -82,13 +82,13 @@ public class FileCopyService {
 
                 return CopyResult.SUCCESS;
             } catch (IOException e) {
-                log.error("IOException during file copy for {}: {}", mediaFile.getFileName(), e.getMessage());
+                log.error("IOException during file copy for {}: {}", mediaFile.fileName(), e.getMessage());
                 Files.deleteIfExists(tempPath);
                 return CopyResult.ERROR;
             }
 
         } catch (IOException e) {
-            log.error("Error creating directories or resolving path for {}: {}", mediaFile.getFileName(), e.getMessage());
+            log.error("Error creating directories or resolving path for {}: {}", mediaFile.fileName(), e.getMessage());
             return CopyResult.ERROR;
         }
     }
