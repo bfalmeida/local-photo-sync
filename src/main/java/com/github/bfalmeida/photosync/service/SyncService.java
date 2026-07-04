@@ -100,18 +100,18 @@ public class SyncService {
         try {
             stats.incrementFound();
             
-            String relativePath = source.relativize(file.getPath()).toString();
+            String relativePath = source.relativize(file.path()).toString();
             if (valkeyStateService.isProcessed(sessionId, relativePath)) {
-                log.debug("Skipping already synced file: {}", file.getFileName());
+                log.debug("Skipping already synced file: {}", file.fileName());
                 stats.incrementSkipped();
                 valkeyStateService.incrementStat(sessionId, "skipped");
                 return;
             }
 
             // Calculate hash for content-based duplicate detection
-            String fileHash = hashingService.calculateHash(file.getPath());
+            String fileHash = hashingService.calculateHash(file.path());
             if (valkeyStateService.isDuplicate(sessionId, fileHash)) {
-                log.debug("Skipping duplicate file: {}", file.getFileName());
+                log.debug("Skipping duplicate file: {}", file.fileName());
                 stats.incrementSkipped();
                 valkeyStateService.incrementStat(sessionId, "skipped");
                 return;
@@ -121,30 +121,30 @@ public class SyncService {
             boolean isWhatsApp = false;
             
             Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
-                filenameDateExtractor.extract(file.getFileName());
+                filenameDateExtractor.extract(file.fileName());
             if (filenameDateOpt.isPresent()) {
-                isWhatsApp = filenameDateOpt.get().isWhatsApp();
+                isWhatsApp = filenameDateOpt.get().whatsApp();
             }
 
             if (dateTime == null) {
                 if (skipUndated) {
-                    log.debug("Skipping undated file: {}", file.getFileName());
+                    log.debug("Skipping undated file: {}", file.fileName());
                     stats.incrementSkipped();
                     valkeyStateService.incrementStat(sessionId, "skipped");
                     return;
                 }
-                log.debug("Using undated folder for: {}", file.getFileName());
+                log.debug("Using undated folder for: {}", file.fileName());
             }
 
             Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
-            long fileSize = Files.size(file.getPath());
+            long fileSize = Files.size(file.path());
             System.out.printf("%s -> %s (%s)%n", 
-                file.getFileName(), 
+                file.fileName(), 
                 destinationPath, 
                 formatFileSize(fileSize));
 
                 if (execute) {
-                    MediaFile fileWithDate = new MediaFile(file.getPath(), file.getFileName(), file.getMediaType(), dateTime, isWhatsApp);
+                    MediaFile fileWithDate = new MediaFile(file.path(), file.fileName(), file.mediaType(), dateTime, isWhatsApp);
                     CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder, fileHash);
                     
                     if (result == CopyResult.SUCCESS) {
@@ -165,16 +165,16 @@ public class SyncService {
         } catch (Exception e) {
             stats.incrementErrors();
             valkeyStateService.incrementStat(sessionId, "errors");
-            log.error("Error processing file {}: {}", file.getFileName(), e.getMessage());
+            log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
         }
     }
 
     private Path determineDestinationPath(MediaFile file, LocalDateTime dateTime, Path destinationRoot, String undatedFolder) {
         String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
-        String typeFolder = file.getMediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+        String typeFolder = file.mediaType() == MediaType.PHOTO ? "Photos" : "Videos";
         
         if (dateTime == null) {
-            return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(file.getFileName());
+            return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(file.fileName());
         }
         
         int year = dateTime.getYear();
@@ -184,11 +184,11 @@ public class SyncService {
                                   .resolve(String.format("%02d", month))
                                   .resolve(typeFolder);
         
-        if (file.isWhatsApp()) {
+        if (file.whatsApp()) {
             path = path.resolve("WhatsApp");
         }
         
-        return path.resolve(file.getFileName());
+        return path.resolve(file.fileName());
     }
 
     private String formatFileSize(long bytes) {
@@ -201,14 +201,14 @@ public class SyncService {
     private LocalDateTime resolveDate(MediaFile mediaFile) {
         // 1. Filename Date
         Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
-            filenameDateExtractor.extract(mediaFile.getFileName());
+            filenameDateExtractor.extract(mediaFile.fileName());
         if (filenameDateOpt.isPresent()) {
             FilenameDateExtractor.DateInfo info = filenameDateOpt.get();
             
             // Harmonize EXIF if filename date is present
             exifMetadataService.harmonizeDate(mediaFile);
             
-            return LocalDateTime.of(info.getYear(), info.getMonth(), 1, 0, 0, 0);
+            return LocalDateTime.of(info.year(), info.month(), 1, 0, 0, 0);
         }
 
         // 2. EXIF Date
@@ -219,11 +219,11 @@ public class SyncService {
 
         // 3. Filesystem Fallback
         try {
-            BasicFileAttributes attrs = Files.readAttributes(mediaFile.getPath(), BasicFileAttributes.class);
+            BasicFileAttributes attrs = Files.readAttributes(mediaFile.path(), BasicFileAttributes.class);
             Instant instant = attrs.creationTime().toInstant();
             return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
         } catch (IOException e) {
-            log.warn("Could not read filesystem attributes for {}: {}", mediaFile.getFileName(), e.getMessage());
+            log.warn("Could not read filesystem attributes for {}: {}", mediaFile.fileName(), e.getMessage());
         }
 
         return null;
