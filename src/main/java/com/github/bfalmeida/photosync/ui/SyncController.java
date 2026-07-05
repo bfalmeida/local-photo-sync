@@ -1,5 +1,6 @@
 package com.github.bfalmeida.photosync.ui;
 
+import com.github.bfalmeida.photosync.model.HealthStatus;
 import com.github.bfalmeida.photosync.model.SyncSettings;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.service.SyncService;
@@ -23,6 +24,7 @@ public class SyncController {
     private Consumer<String> logConsumer;
     private Consumer<String> statusConsumer;
     private Consumer<String> completionConsumer;
+    private Consumer<HealthStatus> healthConsumer;
 
     public SyncController(SyncService syncService, SyncEventBus eventBus) {
         this.syncService = syncService;
@@ -37,6 +39,11 @@ public class SyncController {
                     if (statsConsumer != null) statsConsumer.accept(new SyncStatsUpdate(data.copied(), data.skipped(), data.errors()));
                 }
                 case LOG -> {
+                    // Handle HealthStatus events if they are passed as data
+                    if (event.data() instanceof HealthStatus health) {
+                        if (healthConsumer != null) healthConsumer.accept(health);
+                    }
+                    
                     if (logConsumer != null) logConsumer.accept(event.message());
                     if (statusConsumer != null) statusConsumer.accept("Processing: " + event.message());
                 }
@@ -57,6 +64,7 @@ public class SyncController {
     public void setLogConsumer(Consumer<String> consumer) { this.logConsumer = consumer; }
     public void setStatusConsumer(Consumer<String> consumer) { this.statusConsumer = consumer; }
     public void setCompletionConsumer(Consumer<String> consumer) { this.completionConsumer = consumer; }
+    public void setHealthConsumer(Consumer<HealthStatus> consumer) { this.healthConsumer = consumer; }
 
     public void executeSync(String source, String dest, String undated, boolean clear, boolean skip, Runnable onStart, Runnable onDone) {
         SyncSettings settings = new SyncSettings(
@@ -65,7 +73,7 @@ public class SyncController {
             true, 
             undated, 
             skip, 
-            clear, 
+            clear,
             "gui-session-" + System.currentTimeMillis()
         );
 
