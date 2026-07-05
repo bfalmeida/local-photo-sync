@@ -2,15 +2,12 @@ package com.github.bfalmeida.photosync.service;
 
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
-import com.github.bfalmeida.photosync.ui.SyncEventBus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mockito;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -21,9 +18,8 @@ class SyncServiceTest {
     private FilenameDateExtractor extractor;
     private ExifMetadataService exif;
     private FileCopyService copy;
-    private SyncStateRepository repo;
+    private ValkeyStateService stateService;
     private HashingService hashing;
-    private SyncEventBus eventBus;
     private SyncService service;
 
     @TempDir
@@ -35,11 +31,10 @@ class SyncServiceTest {
         extractor = mock(FilenameDateExtractor.class);
         exif = mock(ExifMetadataService.class);
         copy = mock(FileCopyService.class);
-        repo = mock(SyncStateRepository.class);
+        stateService = mock(ValkeyStateService.class);
         hashing = mock(HashingService.class);
-        eventBus = mock(SyncEventBus.class);
         
-        service = new SyncService(scanner, extractor, exif, copy, repo, hashing, eventBus, 4);
+        service = new SyncService(scanner, extractor, exif, copy, stateService, hashing, 4);
     }
 
     @Test
@@ -56,6 +51,6 @@ class SyncServiceTest {
         
         SyncStatistics stats = service.synchronize(settings);
         assertNotNull(stats);
-        verify(repo).createSession(eq("test-session"), anyString(), anyString());
+        verify(stateService).createSession(eq("test-session"), anyString(), anyString());
     }
 }

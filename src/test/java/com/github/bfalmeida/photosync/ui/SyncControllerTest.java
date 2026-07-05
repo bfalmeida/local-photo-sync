@@ -18,7 +18,7 @@ class SyncControllerTest {
     void setUp() {
         syncService = mock(SyncService.class);
         eventBus = mock(SyncEventBus.class);
-        controller = new SyncController(syncService, eventBus);
+        controller = new SyncController(syncService);
     }
 
     @Test
