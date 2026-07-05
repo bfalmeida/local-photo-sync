@@ -4,6 +4,7 @@ import com.github.bfalmeida.photosync.model.CopyResult;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
+import com.github.bfalmeida.photosync.ui.SyncEventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +30,7 @@ public class SyncService {
     private final FilenameDateExtractor filenameDateExtractor;
     private final ExifMetadataService exifMetadataService;
     private final FileCopyService fileCopyService;
-    private final ValkeyStateService stateService;
+    private final SyncStateRepository stateRepository;
     private final HashingService hashingService;
     private final int threadCount;
 
@@ -37,14 +38,14 @@ public class SyncService {
                       FilenameDateExtractor filenameDateExtractor, 
                       ExifMetadataService exifMetadataService, 
                       FileCopyService fileCopyService,
-                      ValkeyStateService stateService,
+                      SyncStateRepository stateRepository,
                       HashingService hashingService,
                       @Value("${sync.threads:4}") int threadCount) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
         this.exifMetadataService = exifMetadataService;
         this.fileCopyService = fileCopyService;
-        this.stateService = stateService;
+        this.stateRepository = stateRepository;
         this.hashingService = hashingService;
         this.threadCount = threadCount;
     }
@@ -55,7 +56,7 @@ public class SyncService {
         try {
             if (settings.clearState()) {
                 log.info("Clearing sync state as requested.");
-                stateService.flushDb();
+                stateRepository.flushDb();
             }
 
             if (!Files.exists(settings.source())) {
@@ -63,7 +64,7 @@ public class SyncService {
                 return stats;
             }
 
-            stateService.createSession(settings.sessionId(), settings.source().toString(), settings.destination().toString());
+            stateRepository.createSession(settings.sessionId(), settings.source().toString(), settings.destination().toString());
 
             ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 threadCount, threadCount, 0L, TimeUnit.MILLISECONDS,
@@ -89,7 +90,7 @@ public class SyncService {
                 }
             }
 
-            stateService.updateSessionStatus(settings.sessionId(), "COMPLETED");
+            stateRepository.updateSessionStatus(settings.sessionId(), "COMPLETED");
         } catch (Exception e) {
             log.error("Error during synchronization: {}", e.getMessage());
             stats.incrementErrors();
@@ -103,16 +104,16 @@ public class SyncService {
             stats.incrementFound();
             
             String relativePath = settings.source().relativize(file.path()).toString();
-            if (stateService.isProcessed(settings.sessionId(), relativePath)) {
+            if (stateRepository.isProcessed(settings.sessionId(), relativePath)) {
                 stats.incrementSkipped();
-                stateService.incrementStat(settings.sessionId(), "skipped");
+                stateRepository.incrementStat(settings.sessionId(), "skipped");
                 return;
             }
 
             String fileHash = hashingService.calculateHash(file.path());
-            if (stateService.isDuplicate(settings.sessionId(), fileHash)) {
+            if (stateRepository.isDuplicate(settings.sessionId(), fileHash)) {
                 stats.incrementSkipped();
-                stateService.incrementStat(settings.sessionId(), "skipped");
+                stateRepository.incrementStat(settings.sessionId(), "skipped");
                 return;
             }
 
@@ -127,7 +128,7 @@ public class SyncService {
             if (dateTime == null) {
                 if (settings.skipUndated()) {
                     stats.incrementSkipped();
-                    stateService.incrementStat(settings.sessionId(), "skipped");
+                    stateRepository.incrementStat(settings.sessionId(), "skipped");
                     return;
                 }
             }
@@ -138,22 +139,22 @@ public class SyncService {
                 
                 if (result == CopyResult.SUCCESS) {
                     stats.incrementCopied();
-                    stateService.markAsProcessed(settings.sessionId(), relativePath, fileHash);
-                    stateService.updateLastProcessedFile(settings.sessionId(), relativePath);
-                    stateService.incrementStat(settings.sessionId(), "copied");
+                    stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                    stateRepository.updateLastProcessedFile(settings.sessionId(), relativePath);
+                    stateRepository.incrementStat(settings.sessionId(), "copied");
                 } else if (result == CopyResult.SKIPPED) {
                     stats.incrementSkipped();
-                    stateService.incrementStat(settings.sessionId(), "skipped");
+                    stateRepository.incrementStat(settings.sessionId(), "skipped");
                 } else {
                     stats.incrementErrors();
-                    stateService.incrementStat(settings.sessionId(), "errors");
+                    stateRepository.incrementStat(settings.sessionId(), "errors");
                 }
             } else {
                 stats.incrementCopied();
             }
         } catch (Exception e) {
             stats.incrementErrors();
-            stateService.incrementStat(settings.sessionId(), "errors");
+            stateRepository.incrementStat(settings.sessionId(), "errors");
             log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
         }
     }
