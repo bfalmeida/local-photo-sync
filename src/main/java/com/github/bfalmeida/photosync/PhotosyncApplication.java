@@ -19,10 +19,12 @@ public class PhotosyncApplication {
         
         if (cliMode) {
             System.out.println("[VANGUARD-BOOT] Mode: CLI");
+            System.setProperty("photosync.mode", "cli");
             // Remove the flag so Spring Shell doesn't try to execute it as a command
             argList.remove("--cli");
         } else {
             System.out.println("[VANGUARD-BOOT] Mode: GUI");
+            System.setProperty("photosync.mode", "gui");
         }
 
         try {
