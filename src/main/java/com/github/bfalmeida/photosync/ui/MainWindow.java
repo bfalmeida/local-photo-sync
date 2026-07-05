@@ -133,7 +133,6 @@ public class MainWindow extends JFrame {
             return;
         }
 
-        // Logic moved to SyncController. View only handles UI state.
         syncController.executeSync(
             source, dest, undated, clear, skip, 
             () -> {
