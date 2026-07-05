@@ -29,6 +29,16 @@ public class ValkeyStateService implements SyncStateRepository {
     }
 
     @Override
+    public boolean ping() {
+        try (Jedis jedis = jedisPool.getResource()) {
+            return "PONG".equalsIgnoreCase(jedis.ping());
+        } catch (Exception e) {
+            log.error("Valkey ping failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
     public void createSession(String sessionId, String sourcePath, String destinationPath) {
         try (Jedis jedis = jedisPool.getResource()) {
             String key = "session:" + sessionId;

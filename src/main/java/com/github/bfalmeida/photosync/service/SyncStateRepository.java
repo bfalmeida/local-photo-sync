@@ -4,47 +4,52 @@ import java.nio.file.Path;
 
 /**
  * Domain-level interface for managing synchronization state.
- * Decouples the core engine from the storage implementation (e.g., Valkey, SQLite).
+ * Decouples the core engine from the storage implementation.
  */
 public interface SyncStateRepository {
-    
+
     /**
      * Initializes a new synchronization session.
      */
     void createSession(String sessionId, String sourcePath, String destinationPath);
-    
+
     /**
      * Checks if a specific file has already been processed in this session.
      */
     boolean isProcessed(String sessionId, String relativePath);
-    
+
     /**
      * Marks a file as processed to avoid duplicates.
      */
     void markAsProcessed(String sessionId, String relativePath, String fileHash);
-    
+
+    /**
+     * Verifies connectivity to the persistence layer.
+     */
+    boolean ping();
+
     /**
      * Checks if a file hash already exists globally across all sessions.
      */
     boolean isDuplicate(String sessionId, String fileHash);
-    
+
     /**
-     * Updates the last processed file for resume capability.
+     * Updates the progress pointer for the current session.
      */
     void updateLastProcessedFile(String sessionId, String relativePath);
-    
+
     /**
-     * Updates the general status of the session.
+     * Updates the overall session status (e.g., STARTED, COMPLETED, ERROR).
      */
     void updateSessionStatus(String sessionId, String status);
-    
+
     /**
-     * Increments a specific counter (e.g., "copied", "skipped", "errors").
+     * Increments a specific session statistic.
      */
     void incrementStat(String sessionId, String statName);
-    
+
     /**
-     * Clears all stored state data.
+     * Wipes all state data. Use with extreme caution.
      */
     void flushDb();
 }

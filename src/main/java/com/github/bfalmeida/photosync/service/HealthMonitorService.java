@@ -3,9 +3,7 @@ package com.github.bfalmeida.photosync.service;
 import com.github.bfalmeida.photosync.model.HealthStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import redis.clients.jedis.Jedis;
 
 import java.io.IOException;
 import java.nio.file.FileStore;
@@ -17,26 +15,23 @@ public class HealthMonitorService {
     private static final Logger log = LoggerFactory.getLogger(HealthMonitorService.class);
     
     private final SyncStateRepository stateRepository;
-    private final ValkeyStateService valkeyService;
 
-    public HealthMonitorService(SyncStateRepository stateRepository, ValkeyStateService valkeyService) {
+    public HealthMonitorService(SyncStateRepository stateRepository) {
         this.stateRepository = stateRepository;
-        this.valkeyService = valkeyService;
     }
 
     /**
-     * Checks the connectivity to the Valkey instance.
+     * Checks the connectivity to the Valkey instance safely.
      */
     public HealthStatus checkValkey() {
         long start = System.currentTimeMillis();
         try {
-            // We use a direct check through the valkeyService to ensure the pool is working
-            // Note: we use the internal la-Adapter's close/resource logic via a simple check
-            // For the sake of the interface, we assume the la-Adapter can handle this.
-            // Since SyncStateRepository doesn't have ping, we use the implementation.
-            stateRepository.flushDb(); // A simple write operation to verify connectivity
-            long latency = System.currentTimeMillis() - start;
-            return new HealthStatus(true, "Valkey Connected", latency);
+            if (stateRepository.ping()) {
+                long latency = System.currentTimeMillis() - start;
+                return new HealthStatus(true, "Valkey Connected", latency);
+            } else {
+                return new HealthStatus(false, "Valkey responded with failure", -1);
+            }
         } catch (Exception e) {
             log.error("Valkey health check failed: {}", e.getMessage());
             return new HealthStatus(false, "Valkey Offline: " + e.getMessage(), -1);
