@@ -33,6 +33,7 @@ public class SyncService {
     private final SyncStateRepository stateRepository;
     private final HashingService hashingService;
     private final int threadCount;
+    private final SyncEventBus eventBus;
 
     public SyncService(MediaFileScanner mediaFileScanner, 
                       FilenameDateExtractor filenameDateExtractor, 
@@ -40,6 +41,7 @@ public class SyncService {
                       FileCopyService fileCopyService,
                       SyncStateRepository stateRepository,
                       HashingService hashingService,
+                      SyncEventBus eventBus,
                       @Value("${sync.threads:4}") int threadCount) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
@@ -47,6 +49,7 @@ public class SyncService {
         this.fileCopyService = fileCopyService;
         this.stateRepository = stateRepository;
         this.hashingService = hashingService;
+        this.eventBus = eventBus;
         this.threadCount = threadCount;
     }
 
@@ -61,6 +64,7 @@ public class SyncService {
 
             if (!Files.exists(settings.source())) {
                 log.warn("Source folder does not exist: {}", settings.source());
+                eventBus.publish(SyncEventBus.EventType.ERROR, null, "Source folder does not exist: " + settings.source());
                 return stats;
             }
 
@@ -77,23 +81,33 @@ public class SyncService {
                 int totalFiles = mediaFiles.size();
                 AtomicInteger processedCount = new AtomicInteger(0);
 
+                eventBus.publishLog("Scanning complete. Found " + totalFiles + " files.");
+
                 for (MediaFile file : mediaFiles) {
                     executor.submit(() -> {
                         processFile(file, settings, stats);
-                        processedCount.incrementAndGet();
+                        
+                        int current = processedCount.incrementAndGet();
+                        int percent = (int) ((current * 100L) / totalFiles);
+                        eventBus.publishProgress(percent, stats.getCopied(), stats.getSkipped(), stats.getErrors());
                     });
                 }
             } finally {
                 executor.shutdown();
                 if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
+                    log.warn("Executor did not terminate within 1 hour. Forcing shutdown.");
                     executor.shutdownNow();
                 }
             }
 
             stateRepository.updateSessionStatus(settings.sessionId(), "COMPLETED");
+            eventBus.publish(SyncEventBus.EventType.COMPLETE, null, 
+                String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d", 
+                stats.getCopied(), stats.getSkipped(), stats.getErrors()));
         } catch (Exception e) {
             log.error("Error during synchronization: {}", e.getMessage());
             stats.incrementErrors();
+            eventBus.publish(SyncEventBus.EventType.ERROR, null, "Critical error: " + e.getMessage());
         }
         
         return stats;
@@ -105,6 +119,7 @@ public class SyncService {
             
             String relativePath = settings.source().relativize(file.path()).toString();
             if (stateRepository.isProcessed(settings.sessionId(), relativePath)) {
+                log.debug("Skipping already synced file: {}", file.fileName());
                 stats.incrementSkipped();
                 stateRepository.incrementStat(settings.sessionId(), "skipped");
                 return;
@@ -112,6 +127,7 @@ public class SyncService {
 
             String fileHash = hashingService.calculateHash(file.path());
             if (stateRepository.isDuplicate(settings.sessionId(), fileHash)) {
+                log.debug("Skipping duplicate file: {}", file.fileName());
                 stats.incrementSkipped();
                 stateRepository.incrementStat(settings.sessionId(), "skipped");
                 return;
@@ -127,12 +143,15 @@ public class SyncService {
 
             if (dateTime == null) {
                 if (settings.skipUndated()) {
+                    log.debug("Skipping undated file: {}", file.fileName());
                     stats.incrementSkipped();
                     stateRepository.incrementStat(settings.sessionId(), "skipped");
                     return;
                 }
             }
 
+            Path destinationPath = determineDestinationPath(file, dateTime, settings.destination(), settings.undatedFolder());
+            
             if (settings.execute()) {
                 MediaFile fileWithDate = new MediaFile(file.path(), file.fileName(), file.mediaType(), dateTime, isWhatsApp);
                 CopyResult result = fileCopyService.copy(fileWithDate, settings.destination(), settings.undatedFolder(), fileHash);
@@ -142,12 +161,15 @@ public class SyncService {
                     stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
                     stateRepository.updateLastProcessedFile(settings.sessionId(), relativePath);
                     stateRepository.incrementStat(settings.sessionId(), "copied");
+                    eventBus.publishLog("Copied: " + file.fileName());
                 } else if (result == CopyResult.SKIPPED) {
                     stats.incrementSkipped();
                     stateRepository.incrementStat(settings.sessionId(), "skipped");
+                    eventBus.publishLog("Skipped: " + file.fileName());
                 } else {
                     stats.incrementErrors();
                     stateRepository.incrementStat(settings.sessionId(), "errors");
+                    eventBus.publishLog("Error: " + file.fileName());
                 }
             } else {
                 stats.incrementCopied();
@@ -156,6 +178,7 @@ public class SyncService {
             stats.incrementErrors();
             stateRepository.incrementStat(settings.sessionId(), "errors");
             log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
+            eventBus.publishLog("FAILED: " + file.fileName() + " - " + e.getMessage());
         }
     }
 
