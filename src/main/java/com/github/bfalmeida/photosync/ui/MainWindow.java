@@ -10,6 +10,7 @@ import javax.swing.*;
 import java.awt.*;
 
 @Component
+@org.springframework.context.annotation.Lazy
 public class MainWindow extends JFrame {
     private static final Logger log = LoggerFactory.getLogger(MainWindow.class);
     
