@@ -16,6 +16,9 @@ public class GuiLauncher {
     @Autowired
     private SyncService syncService;
 
+    @Autowired
+    private SyncController syncController;
+
     public void launch() {
         log.info("Initializing Vanguard View GUI...");
         
@@ -27,7 +30,7 @@ public class GuiLauncher {
 
         SwingUtilities.invokeLater(() -> {
             try {
-                MainWindow mainWindow = new MainWindow(syncService);
+                MainWindow mainWindow = new MainWindow(syncService, syncController);
                 mainWindow.setVisible(true);
                 log.info("MainWindow launched successfully.");
             } catch (Exception e) {

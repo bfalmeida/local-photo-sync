@@ -8,8 +8,8 @@ public class SyncConfigPanel extends JPanel {
     private JTextField sourceField;
     private JTextField destField;
     private JTextField undatedField;
-    private JCheckBox clearStateCheck;
-    private JCheckBox skipUndatedCheck;
+    private JCheckBox clearStateCheckBox;
+    private JCheckBox skipUndatedCheckBox;
 
     public SyncConfigPanel() {
         setLayout(new GridBagLayout());
@@ -20,60 +20,59 @@ public class SyncConfigPanel extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(10, 10, 10, 10);
 
-        // --- Source Path ---
-        addLabel("Source Folder:", gbc, 0, 0);
-        sourceField = createPathSelector(gbc, 1, 0);
+        // Source Path
+        add(createLabel("Source Folder:"), gbc);
+        JPanel sourceSelector = createPathSelector(field -> this.sourceField = field);
+        gbc.gridx = 1;
+        add(sourceSelector, gbc);
 
-        // --- Destination Path ---
-        addLabel("Destination Root:", gbc, 0, 1);
-        destField = createPathSelector(gbc, 1, 1);
+        // Destination Path
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        add(createLabel("Destination Root:"), gbc);
+        JPanel destSelector = createPathSelector(field -> this.destField = field);
+        gbc.gridx = 1;
+        add(destSelector, gbc);
 
-        // --- Undated Folder ---
-        addLabel("Undated Folder Name:", gbc, 0, 2);
+        // Undated Folder
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        add(createLabel("Undated Folder Name:"), gbc);
         undatedField = new JTextField("undated");
         undatedField.setBackground(new Color(45, 45, 48));
         undatedField.setForeground(Color.WHITE);
+        undatedField.setCaretColor(Color.WHITE);
         gbc.gridx = 1;
-        gbc.gridy = 2;
         add(undatedField, gbc);
 
-        // --- Options ---
-        JPanel optionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        optionsPanel.setOpaque(false);
-        
-        clearStateCheck = new JCheckBox("Clear State (Reset Valkey)");
-        clearStateCheck.setForeground(Color.LIGHT_GRAY);
-        
-        skipUndatedCheck = new JCheckBox("Skip Undated Files");
-        skipUndatedCheck.setForeground(Color.LIGHT_GRAY);
-        
-        optionsPanel.add(clearStateCheck);
-        optionsPanel.add(Box.createHorizontalStrut(20));
-        optionsPanel.add(skipUndatedCheck);
-        
+        // Options
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.gridwidth = 2;
-        add(optionsPanel, gbc);
+        clearStateCheckBox = new JCheckBox("Clear Sync State (Reset Valkey)");
+        clearStateCheckBox.setForeground(Color.LIGHT_GRAY);
+        clearStateCheckBox.setBackground(new Color(30, 30, 30));
+        add(clearStateCheckBox, gbc);
+
+        gbc.gridy = 4;
+        skipUndatedCheckBox = new JCheckBox("Skip Undated Files");
+        skipUndatedCheckBox.setForeground(Color.LIGHT_GRAY);
+        skipUndatedCheckBox.setBackground(new Color(30, 30, 30));
+        add(skipUndatedCheckBox, gbc);
     }
 
-    private void addLabel(String text, GridBagConstraints gbc, int x, int y) {
-        JLabel label = new JLabel(text);
-        label.setForeground(Color.LIGHT_GRAY);
-        gbc.gridx = x;
-        gbc.gridy = y;
-        gbc.gridwidth = 1;
-        add(label, gbc);
-    }
-
-    private JTextField createPathSelector(GridBagConstraints gbc, int x, int y) {
+    private JPanel createPathSelector(java.util.function.Consumer<JTextField> fieldSetter) {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
         panel.setOpaque(false);
-        
-        JTextField field = new JTextField();
+
+        JTextField field = new JTextField(20);
         field.setBackground(new Color(45, 45, 48));
         field.setForeground(Color.WHITE);
+        field.setCaretColor(Color.WHITE);
+        panel.add(field, BorderLayout.CENTER);
         
+        fieldSetter.accept(field);
+
         JButton browseBtn = new JButton("Browse...");
         browseBtn.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
@@ -82,21 +81,44 @@ public class SyncConfigPanel extends JPanel {
                 field.setText(chooser.getSelectedFile().getAbsolutePath());
             }
         });
-        
-        panel.add(field, BorderLayout.CENTER);
         panel.add(browseBtn, BorderLayout.EAST);
-        
-        gbc.gridx = x;
-        gbc.gridy = y;
-        gbc.gridwidth = 1;
-        add(panel, gbc);
-        
-        return field;
+
+        return panel;
     }
 
-    public String getSourcePath() { return sourceField.getText(); }
-    public String getDestPath() { return destField.getText(); }
-    public String getUndatedFolder() { return undatedField.getText(); }
-    public boolean isClearState() { return clearStateCheck.isSelected(); }
-    public boolean isSkipUndated() { return skipUndatedCheck.isSelected(); }
+    private JLabel createLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(Color.LIGHT_GRAY);
+        return label;
+    }
+
+    // Getters
+    public String getSourcePath() {
+        return sourceField != null ? sourceField.getText() : "";
+    }
+
+    public String getDestPath() {
+        return destField != null ? destField.getText() : "";
+    }
+
+    public String getUndatedFolder() {
+        return undatedField.getText();
+    }
+
+    public boolean isClearState() {
+        return clearStateCheckBox.isSelected();
+    }
+
+    public boolean isSkipUndated() {
+        return skipUndatedCheckBox.isSelected();
+    }
+
+    // Setters for Testing
+    public void setSourcePath(String path) {
+        if (sourceField != null) sourceField.setText(path);
+    }
+
+    public void setDestPath(String path) {
+        if (destField != null) destField.setText(path);
+    }
 }

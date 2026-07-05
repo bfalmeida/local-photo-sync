@@ -12,23 +12,27 @@ import java.awt.*;
 import java.nio.file.Paths;
 
 @Component
-public class MainWindow extends JFrame implements SyncProgressListener {
+public class MainWindow extends JFrame {
     private static final Logger log = LoggerFactory.getLogger(MainWindow.class);
     
     private final SyncService syncService;
+    private final SyncController syncController;
     private JPanel contentPanel;
     private JLabel statusLabel;
     private SyncConfigPanel configPanel;
     private SyncDashboardPanel dashboardPanel;
+    private JButton startSyncBtn;
 
-    public MainWindow(SyncService syncService) {
+    public MainWindow(SyncService syncService, SyncController syncController) {
         this.syncService = syncService;
+        this.syncController = syncController;
         setTitle("Local Photo Sync - Vanguard View");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 700);
         setLocationRelativeTo(null);
         
         initUI();
+        wireController();
     }
 
     private void initUI() {
@@ -80,7 +84,6 @@ public class MainWindow extends JFrame implements SyncProgressListener {
         dashBtn.addActionListener(e -> cl.show(contentPanel, "DASHBOARD"));
         confBtn.addActionListener(e -> cl.show(contentPanel, "CONFIG"));
         
-        // Add the "Start Sync" trigger to the config panel
         setupSyncTrigger();
         
         body.add(contentPanel, BorderLayout.CENTER);
@@ -98,18 +101,27 @@ public class MainWindow extends JFrame implements SyncProgressListener {
         add(statusBar, BorderLayout.SOUTH);
     }
 
+    private void wireController() {
+        syncController.setProgressConsumer(p -> SwingUtilities.invokeLater(() -> dashboardPanel.setProgress(p)));
+        syncController.setStatsConsumer(s -> SwingUtilities.invokeLater(() -> dashboardPanel.updateStats(s.copied(), s.skipped(), s.errors())));
+        syncController.setLogConsumer(m -> SwingUtilities.invokeLater(() -> dashboardPanel.appendLog(m)));
+        syncController.setStatusConsumer(s -> SwingUtilities.invokeLater(() -> updateStatus(s)));
+        syncController.setCompletionConsumer(sum -> SwingUtilities.invokeLater(() -> {
+            dashboardPanel.appendLog(">>> " + sum);
+            JOptionPane.showMessageDialog(this, "Sync Finished!\n" + sum, "Success", JOptionPane.INFORMATION_MESSAGE);
+        }));
+    }
+
     private void setupSyncTrigger() {
-        JButton startBtn = new JButton("Start Synchronization");
-        startBtn.setBackground(new Color(46, 204, 113));
-        startBtn.setForeground(Color.WHITE);
-        startBtn.setFocusPainted(false);
-        startBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        startSyncBtn = new JButton("Start Synchronization");
+        startSyncBtn.setBackground(new Color(46, 204, 113));
+        startSyncBtn.setForeground(Color.WHITE);
+        startSyncBtn.setFocusPainted(false);
+        startSyncBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         
-        startBtn.addActionListener(e -> startSyncProcess());
+        startSyncBtn.addActionListener(e -> startSyncProcess());
         
-        // Add to config panel (this requires a method in SyncConfigPanel or just adding it to the panel)
-        // For now, we add it to the bottom of the configPanel
-        configPanel.add(startBtn);
+        configPanel.add(startSyncBtn);
         configPanel.revalidate();
     }
 
@@ -119,14 +131,12 @@ public class MainWindow extends JFrame implements SyncProgressListener {
         String undated = configPanel.getUndatedFolder();
         boolean clear = configPanel.isClearState();
         boolean skip = configPanel.isSkipUndated();
-        String sessionId = "gui-session-" + System.currentTimeMillis();
 
         if (source.isEmpty() || dest.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Please specify source and destination paths.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // Use SwingWorker to avoid freezing the GUI
         SwingWorker<SyncStatistics, Void> worker = new SwingWorker<>() {
             @Override
             protected SyncStatistics doInBackground() {
@@ -138,8 +148,8 @@ public class MainWindow extends JFrame implements SyncProgressListener {
                     undated, 
                     skip, 
                     clear, 
-                    sessionId, 
-                    MainWindow.this
+                    "gui-session-" + System.currentTimeMillis(), 
+                    syncController
                 );
             }
 
@@ -148,10 +158,6 @@ public class MainWindow extends JFrame implements SyncProgressListener {
                 try {
                     SyncStatistics stats = get();
                     updateStatus("Sync Complete");
-                    JOptionPane.showMessageDialog(MainWindow.this, 
-                        String.format("Sync Finished!\nCopied: %d\nSkipped: %d\nErrors: %d", 
-                        stats.getCopied(), stats.getSkipped(), stats.getErrors()), 
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
                 } catch (Exception e) {
                     updateStatus("Sync Failed");
                     JOptionPane.showMessageDialog(MainWindow.this, "Critical Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -171,38 +177,6 @@ public class MainWindow extends JFrame implements SyncProgressListener {
         return btn;
     }
 
-    @Override
-    public void onProgressUpdate(int percent, int copied, int skipped, int errors) {
-        SwingUtilities.invokeLater(() -> {
-            dashboardPanel.setProgress(percent);
-            dashboardPanel.updateStats(copied, skipped, errors);
-        });
-    }
-
-    @Override
-    public void onLogMessage(String message) {
-        SwingUtilities.invokeLater(() -> {
-            dashboardPanel.appendLog(message);
-            updateStatus("Processing: " + message);
-        });
-    }
-
-    @Override
-    public void onSyncComplete(boolean success, String finalSummary) {
-        SwingUtilities.invokeLater(() -> {
-            updateStatus("Sync Completed");
-            dashboardPanel.appendLog(">>> " + finalSummary);
-        });
-    }
-
-    @Override
-    public void onSyncError(String errorMessage) {
-        SwingUtilities.invokeLater(() -> {
-            updateStatus("Sync Error");
-            dashboardPanel.appendLog("ERROR: " + errorMessage);
-        });
-    }
-
     public void updateStatus(String message) {
         statusLabel.setText(" " + message);
     }
@@ -213,5 +187,9 @@ public class MainWindow extends JFrame implements SyncProgressListener {
 
     public SyncDashboardPanel getDashboardPanel() {
         return dashboardPanel;
+    }
+
+    public JButton getStartSyncBtn() {
+        return startSyncBtn;
     }
 }
