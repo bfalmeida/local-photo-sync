@@ -19,6 +19,7 @@ public class MainWindow extends JFrame {
     private SyncConfigPanel configPanel;
     private SyncDashboardPanel dashboardPanel;
     private JButton startSyncBtn;
+    private HeartbeatIndicator heartbeat;
 
     public MainWindow(SyncService syncService, SyncController syncController) {
         this.syncController = syncController;
@@ -90,10 +91,18 @@ public class MainWindow extends JFrame {
         statusBar.setBackground(new Color(35, 35, 38));
         statusBar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(60, 60, 65)));
 
+        JPanel statusLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        statusLeft.setOpaque(false);
+        
+        heartbeat = new HeartbeatIndicator();
         statusLabel = new JLabel(" System Ready");
         statusLabel.setForeground(Color.LIGHT_GRAY);
         statusLabel.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        statusBar.add(statusLabel, BorderLayout.WEST);
+        
+        statusLeft.add(heartbeat);
+        statusLeft.add(statusLabel);
+        
+        statusBar.add(statusLeft, BorderLayout.WEST);
         add(statusBar, BorderLayout.SOUTH);
     }
 
@@ -105,6 +114,14 @@ public class MainWindow extends JFrame {
         syncController.setCompletionConsumer(sum -> SwingUtilities.invokeLater(() -> {
             dashboardPanel.appendLog(">>> " + sum);
             JOptionPane.showMessageDialog(this, "Sync Finished!\n" + sum, "Success", JOptionPane.INFORMATION_MESSAGE);
+        }));
+        syncController.setHealthConsumer(h -> SwingUtilities.invokeLater(() -> {
+            //- Healthy: Green
+            //- Warning: Yellow
+            //- Critical: Red
+            boolean isWarning = h.message().contains("Warning");
+            heartbeat.setStatus(h.healthy(), isWarning);
+            updateStatus("Health: " + h.message() + " (" + h.latencyMs() + "ms)");
         }));
     }
 
