@@ -2,6 +2,7 @@ package com.github.bfalmeida.photosync.service;
 
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
+import com.github.bfalmeida.photosync.ui.SyncEventBus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,6 +21,7 @@ class SyncServiceTest {
     private FileCopyService copy;
     private ValkeyStateService stateService;
     private HashingService hashing;
+    private SyncEventBus eventBus;
     private SyncService service;
 
     @TempDir
@@ -33,8 +35,9 @@ class SyncServiceTest {
         copy = mock(FileCopyService.class);
         stateService = mock(ValkeyStateService.class);
         hashing = mock(HashingService.class);
+        eventBus = mock(SyncEventBus.class);
         
-        service = new SyncService(scanner, extractor, exif, copy, stateService, hashing, 4);
+        service = new SyncService(scanner, extractor, exif, copy, stateService, hashing, eventBus, 4);
     }
 
     @Test
