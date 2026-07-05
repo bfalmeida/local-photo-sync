@@ -3,6 +3,7 @@ package com.github.bfalmeida.photosync.service;
 import com.github.bfalmeida.photosync.model.CopyResult;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
+import com.github.bfalmeida.photosync.ui.SyncProgressListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,9 +17,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import com.github.bfalmeida.photosync.model.MediaType;
 
 @Service
@@ -49,7 +49,12 @@ public class SyncService {
         this.threadCount = threadCount;
     }
 
+    // Overload for CLI compatibility
     public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState, String sessionId) {
+        return synchronize(source, destination, execute, undatedFolder, skipUndated, clearState, sessionId, null);
+    }
+
+    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState, String sessionId, SyncProgressListener listener) {
         SyncStatistics stats = new SyncStatistics();
         
         try {
@@ -60,23 +65,36 @@ public class SyncService {
 
             if (!Files.exists(source)) {
                 log.warn("Source folder does not exist: {}", source);
+                if (listener != null) listener.onSyncError("Source folder does not exist: " + source);
                 return stats;
             }
 
             valkeyStateService.createSession(sessionId, source.toString(), destination.toString());
 
-            java.util.concurrent.ThreadPoolExecutor executor = new java.util.concurrent.ThreadPoolExecutor(
-                threadCount, threadCount, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
-                new java.util.concurrent.LinkedBlockingQueue<>(1000),
-                new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy()
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                threadCount, threadCount, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(1000),
+                new ThreadPoolExecutor.CallerRunsPolicy()
             );
 
             try {
-                try (var mediaFileStream = mediaFileScanner.scan(source)) {
-                    mediaFileStream.forEach(file -> {
-                        executor.submit(() -> {
-                            processFile(file, source, destination, execute, undatedFolder, skipUndated, sessionId, stats);
-                        });
+                var mediaFiles = mediaFileScanner.scan(source).toList();
+                int totalFiles = mediaFiles.size();
+                AtomicInteger processedCount = new AtomicInteger(0);
+
+                if (listener != null) {
+                    listener.onLogMessage("Scanning complete. Found " + totalFiles + " files.");
+                }
+
+                for (MediaFile file : mediaFiles) {
+                    executor.submit(() -> {
+                        processFile(file, source, destination, execute, undatedFolder, skipUndated, sessionId, stats, listener);
+                        
+                        int current = processedCount.incrementAndGet();
+                        if (listener != null) {
+                            int percent = (int) ((current * 100L) / totalFiles);
+                            listener.onProgressUpdate(percent, stats.getCopied(), stats.getSkipped(), stats.getErrors());
+                        }
                     });
                 }
             } finally {
@@ -88,15 +106,20 @@ public class SyncService {
             }
 
             valkeyStateService.updateSessionStatus(sessionId, "COMPLETED");
+            if (listener != null) {
+                listener.onSyncComplete(true, String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d", 
+                    stats.getCopied(), stats.getSkipped(), stats.getErrors()));
+            }
         } catch (Exception e) {
             log.error("Error during synchronization: {}", e.getMessage());
             stats.incrementErrors();
+            if (listener != null) listener.onSyncError("Critical error: " + e.getMessage());
         }
         
         return stats;
     }
 
-    private void processFile(MediaFile file, Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, String sessionId, SyncStatistics stats) {
+    private void processFile(MediaFile file, Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, String sessionId, SyncStatistics stats, SyncProgressListener listener) {
         try {
             stats.incrementFound();
             
@@ -108,7 +131,6 @@ public class SyncService {
                 return;
             }
 
-            // Calculate hash for content-based duplicate detection
             String fileHash = hashingService.calculateHash(file.path());
             if (valkeyStateService.isDuplicate(sessionId, fileHash)) {
                 log.debug("Skipping duplicate file: {}", file.fileName());
@@ -120,8 +142,7 @@ public class SyncService {
             LocalDateTime dateTime = resolveDate(file);
             boolean isWhatsApp = false;
             
-            Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
-                filenameDateExtractor.extract(file.fileName());
+            Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = filenameDateExtractor.extract(file.fileName());
             if (filenameDateOpt.isPresent()) {
                 isWhatsApp = filenameDateOpt.get().whatsApp();
             }
@@ -133,39 +154,37 @@ public class SyncService {
                     valkeyStateService.incrementStat(sessionId, "skipped");
                     return;
                 }
-                log.debug("Using undated folder for: {}", file.fileName());
             }
 
             Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
-            long fileSize = Files.size(file.path());
-            System.out.printf("%s -> %s (%s)%n", 
-                file.fileName(), 
-                destinationPath, 
-                formatFileSize(fileSize));
-
-                if (execute) {
-                    MediaFile fileWithDate = new MediaFile(file.path(), file.fileName(), file.mediaType(), dateTime, isWhatsApp);
-                    CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder, fileHash);
-                    
-                    if (result == CopyResult.SUCCESS) {
-                        stats.incrementCopied();
-                        valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
-                        valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
-                        valkeyStateService.incrementStat(sessionId, "copied");
-                    } else if (result == CopyResult.SKIPPED) {
-                        stats.incrementSkipped();
-                        valkeyStateService.incrementStat(sessionId, "skipped");
-                    } else {
-                        stats.incrementErrors();
-                        valkeyStateService.incrementStat(sessionId, "errors");
-                    }
-                } else {
+            
+            if (execute) {
+                MediaFile fileWithDate = new MediaFile(file.path(), file.fileName(), file.mediaType(), dateTime, isWhatsApp);
+                CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder, fileHash);
+                
+                if (result == CopyResult.SUCCESS) {
                     stats.incrementCopied();
+                    valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
+                    valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
+                    valkeyStateService.incrementStat(sessionId, "copied");
+                    if (listener != null) listener.onLogMessage("Copied: " + file.fileName());
+                } else if (result == CopyResult.SKIPPED) {
+                    stats.incrementSkipped();
+                    valkeyStateService.incrementStat(sessionId, "skipped");
+                    if (listener != null) listener.onLogMessage("Skipped: " + file.fileName());
+                } else {
+                    stats.incrementErrors();
+                    valkeyStateService.incrementStat(sessionId, "errors");
+                    if (listener != null) listener.onLogMessage("Error: " + file.fileName());
                 }
+            } else {
+                stats.incrementCopied();
+            }
         } catch (Exception e) {
             stats.incrementErrors();
             valkeyStateService.incrementStat(sessionId, "errors");
             log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
+            if (listener != null) listener.onLogMessage("FAILED: " + file.fileName() + " - " + e.getMessage());
         }
     }
 
@@ -199,25 +218,16 @@ public class SyncService {
     }
 
     private LocalDateTime resolveDate(MediaFile mediaFile) {
-        // 1. Filename Date
-        Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = 
-            filenameDateExtractor.extract(mediaFile.fileName());
+        Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = filenameDateExtractor.extract(mediaFile.fileName());
         if (filenameDateOpt.isPresent()) {
             FilenameDateExtractor.DateInfo info = filenameDateOpt.get();
-            
-            // Harmonize EXIF if filename date is present
             exifMetadataService.harmonizeDate(mediaFile);
-            
             return LocalDateTime.of(info.year(), info.month(), 1, 0, 0, 0);
         }
-
-        // 2. EXIF Date
         Optional<LocalDateTime> exifDate = exifMetadataService.readExifDate(mediaFile);
         if (exifDate.isPresent()) {
             return exifDate.get();
         }
-
-        // 3. Filesystem Fallback
         try {
             BasicFileAttributes attrs = Files.readAttributes(mediaFile.path(), BasicFileAttributes.class);
             Instant instant = attrs.creationTime().toInstant();
@@ -225,7 +235,6 @@ public class SyncService {
         } catch (IOException e) {
             log.warn("Could not read filesystem attributes for {}: {}", mediaFile.fileName(), e.getMessage());
         }
-
         return null;
     }
 }
