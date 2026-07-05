@@ -13,6 +13,7 @@ public class MainWindow extends JFrame {
     private JPanel contentPanel;
     private JLabel statusLabel;
     private SyncConfigPanel configPanel;
+    private SyncDashboardPanel dashboardPanel;
 
     public MainWindow() {
         setTitle("Local Photo Sync - Vanguard View");
@@ -51,11 +52,15 @@ public class MainWindow extends JFrame {
         sidebar.setBackground(new Color(53, 53, 59));
         sidebar.setBorder(BorderFactory.createEmptyBorder(20, 10, 20, 10));
 
-        sidebar.add(createNavButton("Sync Dashboard"));
+        JButton dashBtn = createNavButton("Sync Dashboard");
+        JButton histBtn = createNavButton("History");
+        JButton confBtn = createNavButton("Configuration");
+
+        sidebar.add(dashBtn);
         sidebar.add(Box.createVerticalStrut(10));
-        sidebar.add(createNavButton("History"));
+        sidebar.add(histBtn);
         sidebar.add(Box.createVerticalStrut(10));
-        sidebar.add(createNavButton("Configuration"));
+        sidebar.add(confBtn);
 
         body.add(sidebar, BorderLayout.WEST);
 
@@ -64,11 +69,17 @@ public class MainWindow extends JFrame {
         contentPanel.setBackground(new Color(30, 30, 30));
         
         configPanel = new SyncConfigPanel();
+        dashboardPanel = new SyncDashboardPanel();
+        
+        contentPanel.add(dashboardPanel, "DASHBOARD");
         contentPanel.add(configPanel, "CONFIG");
         
-        // Default view
         CardLayout cl = (CardLayout)(contentPanel.getLayout());
-        cl.show(contentPanel, "CONFIG");
+        cl.show(contentPanel, "DASHBOARD");
+        
+        // Wiring navigation
+        dashBtn.addActionListener(e -> cl.show(contentPanel, "DASHBOARD"));
+        confBtn.addActionListener(e -> cl.show(contentPanel, "CONFIG"));
         
         body.add(contentPanel, BorderLayout.CENTER);
         add(body, BorderLayout.CENTER);
@@ -102,5 +113,9 @@ public class MainWindow extends JFrame {
 
     public SyncConfigPanel getConfigPanel() {
         return configPanel;
+    }
+
+    public SyncDashboardPanel getDashboardPanel() {
+        return dashboardPanel;
     }
 }
