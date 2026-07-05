@@ -1,41 +1,35 @@
 package com.github.bfalmeida.photosync.ui;
 
-import com.github.bfalmeida.photosync.service.SyncService;
-import com.formdev.flatlaf.FlatDarkLaf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import javax.swing.*;
 
 @Component
-public class GuiLauncher {
+public class GuiLauncher implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(GuiLauncher.class);
-    
-    @Autowired
-    private SyncService syncService;
 
     @Autowired
-    private SyncController syncController;
+    private MainWindow mainWindow;
 
-    public void launch() {
-        log.info("Initializing Vanguard View GUI...");
-        
-        try {
-            FlatDarkLaf.setup();
-        } catch (Exception e) {
-            log.error("Failed to initialize FlatLaf theme: {}", e.getMessage());
+    @Override
+    public void run(String... args) {
+        String mode = System.getProperty("photosync.mode", "gui");
+        if ("gui".equalsIgnoreCase(mode)) {
+            log.info("GUI mode detected. Waking up MainWindow...");
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    mainWindow.setVisible(true);
+                    log.info("MainWindow is now visible.");
+                } catch (Exception e) {
+                    log.error("Failed to wake up MainWindow: {}", e.getMessage());
+                }
+            });
+        } else {
+            log.info("CLI mode detected. Skipping GUI launch.");
         }
-
-        SwingUtilities.invokeLater(() -> {
-            try {
-                MainWindow mainWindow = new MainWindow(syncService, syncController);
-                mainWindow.setVisible(true);
-                log.info("MainWindow launched successfully.");
-            } catch (Exception e) {
-                log.error("Critical failure during GUI launch: {}", e.getMessage());
-            }
-        });
     }
 }
