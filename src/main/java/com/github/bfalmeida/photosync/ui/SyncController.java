@@ -11,11 +11,12 @@ import java.util.function.Consumer;
 
 /**
  * Orchestrator that manages the execution lifecycle of a sync session.
- * Moves the threading logic (SwingWorker) out of the View.
+ * Decouples threading (SwingWorker) from the View.
  */
 @Component
 public class SyncController {
     private final SyncService syncService;
+    private final SyncEventBus eventBus;
     
     private Consumer<Integer> progressConsumer;
     private Consumer<SyncController.SyncStatsUpdate> statsConsumer;
@@ -23,8 +24,32 @@ public class SyncController {
     private Consumer<String> statusConsumer;
     private Consumer<String> completionConsumer;
 
-    public SyncController(SyncService syncService) {
+    public SyncController(SyncService syncService, SyncEventBus eventBus) {
         this.syncService = syncService;
+        this.eventBus = eventBus;
+        
+        // Subscribe to the event bus to bridge telemetry to the UI consumers
+        this.eventBus.subscribe(event -> {
+            switch (event.type()) {
+                case PROGRESS -> {
+                    var data = (SyncEventBus.ProgressData) event.data();
+                    if (progressConsumer != null) progressConsumer.accept(data.percent());
+                    if (statsConsumer != null) statsConsumer.accept(new SyncStatsUpdate(data.copied(), data.skipped(), data.errors()));
+                }
+                case LOG -> {
+                    if (logConsumer != null) logConsumer.accept(event.message());
+                    if (statusConsumer != null) statusConsumer.accept("Processing: " + event.message());
+                }
+                case COMPLETE -> {
+                    if (completionConsumer != null) completionConsumer.accept(event.message());
+                    if (statusConsumer != null) statusConsumer.accept("Sync Completed");
+                }
+                case ERROR -> {
+                    if (logConsumer != null) logConsumer.accept("ERROR: " + event.message());
+                    if (statusConsumer != null) statusConsumer.accept("Sync Error");
+                }
+            }
+        });
     }
 
     public void setProgressConsumer(Consumer<Integer> consumer) { this.progressConsumer = consumer; }
