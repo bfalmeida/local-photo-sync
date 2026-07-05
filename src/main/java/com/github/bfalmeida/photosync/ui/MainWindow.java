@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import javax.swing.*;
 import java.awt.*;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 
 @Component
@@ -22,6 +23,7 @@ public class MainWindow extends JFrame {
     private SyncConfigPanel configPanel;
     private SyncDashboardPanel dashboardPanel;
     private JButton startSyncBtn;
+    private JButton cancelSyncBtn;
 
     public MainWindow(SyncService syncService, SyncController syncController) {
         this.syncService = syncService;
@@ -107,6 +109,8 @@ public class MainWindow extends JFrame {
         syncController.setLogConsumer(m -> SwingUtilities.invokeLater(() -> dashboardPanel.appendLog(m)));
         syncController.setStatusConsumer(s -> SwingUtilities.invokeLater(() -> updateStatus(s)));
         syncController.setCompletionConsumer(sum -> SwingUtilities.invokeLater(() -> {
+            updateStatus("Sync Completed");
+            setSyncEnabled(true);
             dashboardPanel.appendLog(">>> " + sum);
             JOptionPane.showMessageDialog(this, "Sync Finished!\n" + sum, "Success", JOptionPane.INFORMATION_MESSAGE);
         }));
@@ -132,10 +136,23 @@ public class MainWindow extends JFrame {
         boolean clear = configPanel.isClearState();
         boolean skip = configPanel.isSkipUndated();
 
+        // Hardened Validation
         if (source.isEmpty() || dest.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please specify source and destination paths.", "Error", JOptionPane.ERROR_MESSAGE);
+            showError("Paths cannot be empty.");
             return;
         }
+
+        if (!Files.isDirectory(Paths.get(source))) {
+            showError("Source path is not a valid directory: " + source);
+            return;
+        }
+
+        if (!Files.isDirectory(Paths.get(dest))) {
+            showError("Destination path is not a valid directory: " + dest);
+            return;
+        }
+
+        setSyncEnabled(false);
 
         SwingWorker<SyncStatistics, Void> worker = new SwingWorker<>() {
             @Override
@@ -158,14 +175,25 @@ public class MainWindow extends JFrame {
                 try {
                     SyncStatistics stats = get();
                     updateStatus("Sync Complete");
+                    setSyncEnabled(true);
                 } catch (Exception e) {
                     updateStatus("Sync Failed");
-                    JOptionPane.showMessageDialog(MainWindow.this, "Critical Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    setSyncEnabled(true);
+                    showError("Critical Error: " + e.getMessage());
                 }
             }
         };
         
         worker.execute();
+    }
+
+    private void setSyncEnabled(boolean enabled) {
+        startSyncBtn.setEnabled(enabled);
+        startSyncBtn.setBackground(enabled ? new Color(46, 204, 113) : new Color(100, 100, 100));
+    }
+
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Operational Error", JOptionPane.ERROR_MESSAGE);
     }
 
     private JButton createNavButton(String text) {
