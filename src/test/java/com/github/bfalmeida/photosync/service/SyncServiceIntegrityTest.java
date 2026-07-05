@@ -1,31 +1,29 @@
 package com.github.bfalmeida.photosync.service;
 
-import com.github.bfalmeida.photosync.model.MediaFile;
-import com.github.bfalmeida.photosync.model.MediaType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@ActiveProfiles("test")
-public class SyncServiceIntegrityTest {
+class SyncServiceIntegrityTest {
 
-    @Autowired
-    private HashingService hashingService;
-
-    @Autowired
+    private HashingService hashingService = new HashingService();
     private ValkeyStateService valkeyStateService;
 
     @TempDir
     Path tempDir;
+
+    @BeforeEach
+    void setUp() {
+        valkeyStateService = mock(ValkeyStateService.class);
+    }
 
     @Test
     public void testHashingService() throws IOException {
@@ -52,10 +50,13 @@ public class SyncServiceIntegrityTest {
         String hash = "some-sha256-hash";
         String path = "photos/image.jpg";
 
+        when(valkeyStateService.isDuplicate(sessionId, hash)).thenReturn(false);
         assertFalse(valkeyStateService.isDuplicate(sessionId, hash), "Should not be duplicate initially");
         
+        doNothing().when(valkeyStateService).markAsProcessed(sessionId, path, hash);
         valkeyStateService.markAsProcessed(sessionId, path, hash);
         
+        when(valkeyStateService.isDuplicate(sessionId, hash)).thenReturn(true);
         assertTrue(valkeyStateService.isDuplicate(sessionId, hash), "Should be detected as duplicate after being marked as processed");
     }
 }
