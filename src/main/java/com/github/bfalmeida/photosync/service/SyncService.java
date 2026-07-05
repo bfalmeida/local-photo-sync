@@ -3,7 +3,7 @@ package com.github.bfalmeida.photosync.service;
 import com.github.bfalmeida.photosync.model.CopyResult;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
-import com.github.bfalmeida.photosync.ui.SyncProgressListener;
+import com.github.bfalmeida.photosync.model.SyncSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +29,7 @@ public class SyncService {
     private final FilenameDateExtractor filenameDateExtractor;
     private final ExifMetadataService exifMetadataService;
     private final FileCopyService fileCopyService;
-    private final ValkeyStateService valkeyStateService;
+    private final ValkeyStateService stateService;
     private final HashingService hashingService;
     private final int threadCount;
 
@@ -37,39 +37,33 @@ public class SyncService {
                       FilenameDateExtractor filenameDateExtractor, 
                       ExifMetadataService exifMetadataService, 
                       FileCopyService fileCopyService,
-                      ValkeyStateService valkeyStateService,
+                      ValkeyStateService stateService,
                       HashingService hashingService,
                       @Value("${sync.threads:4}") int threadCount) {
         this.mediaFileScanner = mediaFileScanner;
         this.filenameDateExtractor = filenameDateExtractor;
         this.exifMetadataService = exifMetadataService;
         this.fileCopyService = fileCopyService;
-        this.valkeyStateService = valkeyStateService;
+        this.stateService = stateService;
         this.hashingService = hashingService;
         this.threadCount = threadCount;
     }
 
-    // Overload for CLI compatibility
-    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState, String sessionId) {
-        return synchronize(source, destination, execute, undatedFolder, skipUndated, clearState, sessionId, null);
-    }
-
-    public SyncStatistics synchronize(Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, boolean clearState, String sessionId, SyncProgressListener listener) {
+    public SyncStatistics synchronize(SyncSettings settings) {
         SyncStatistics stats = new SyncStatistics();
         
         try {
-            if (clearState) {
-                log.info("Clearing Valkey sync state as requested.");
-                valkeyStateService.flushDb();
+            if (settings.clearState()) {
+                log.info("Clearing sync state as requested.");
+                stateService.flushDb();
             }
 
-            if (!Files.exists(source)) {
-                log.warn("Source folder does not exist: {}", source);
-                if (listener != null) listener.onSyncError("Source folder does not exist: " + source);
+            if (!Files.exists(settings.source())) {
+                log.warn("Source folder does not exist: {}", settings.source());
                 return stats;
             }
 
-            valkeyStateService.createSession(sessionId, source.toString(), destination.toString());
+            stateService.createSession(settings.sessionId(), settings.source().toString(), settings.destination().toString());
 
             ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 threadCount, threadCount, 0L, TimeUnit.MILLISECONDS,
@@ -78,64 +72,47 @@ public class SyncService {
             );
 
             try {
-                var mediaFiles = mediaFileScanner.scan(source).toList();
+                var mediaFiles = mediaFileScanner.scan(settings.source()).toList();
                 int totalFiles = mediaFiles.size();
                 AtomicInteger processedCount = new AtomicInteger(0);
 
-                if (listener != null) {
-                    listener.onLogMessage("Scanning complete. Found " + totalFiles + " files.");
-                }
-
                 for (MediaFile file : mediaFiles) {
                     executor.submit(() -> {
-                        processFile(file, source, destination, execute, undatedFolder, skipUndated, sessionId, stats, listener);
-                        
-                        int current = processedCount.incrementAndGet();
-                        if (listener != null) {
-                            int percent = (int) ((current * 100L) / totalFiles);
-                            listener.onProgressUpdate(percent, stats.getCopied(), stats.getSkipped(), stats.getErrors());
-                        }
+                        processFile(file, settings, stats);
+                        processedCount.incrementAndGet();
                     });
                 }
             } finally {
                 executor.shutdown();
                 if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
-                    log.warn("Executor did not terminate within 1 hour. Forcing shutdown.");
                     executor.shutdownNow();
                 }
             }
 
-            valkeyStateService.updateSessionStatus(sessionId, "COMPLETED");
-            if (listener != null) {
-                listener.onSyncComplete(true, String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d", 
-                    stats.getCopied(), stats.getSkipped(), stats.getErrors()));
-            }
+            stateService.updateSessionStatus(settings.sessionId(), "COMPLETED");
         } catch (Exception e) {
             log.error("Error during synchronization: {}", e.getMessage());
             stats.incrementErrors();
-            if (listener != null) listener.onSyncError("Critical error: " + e.getMessage());
         }
         
         return stats;
     }
 
-    private void processFile(MediaFile file, Path source, Path destination, boolean execute, String undatedFolder, boolean skipUndated, String sessionId, SyncStatistics stats, SyncProgressListener listener) {
+    private void processFile(MediaFile file, SyncSettings settings, SyncStatistics stats) {
         try {
             stats.incrementFound();
             
-            String relativePath = source.relativize(file.path()).toString();
-            if (valkeyStateService.isProcessed(sessionId, relativePath)) {
-                log.debug("Skipping already synced file: {}", file.fileName());
+            String relativePath = settings.source().relativize(file.path()).toString();
+            if (stateService.isProcessed(settings.sessionId(), relativePath)) {
                 stats.incrementSkipped();
-                valkeyStateService.incrementStat(sessionId, "skipped");
+                stateService.incrementStat(settings.sessionId(), "skipped");
                 return;
             }
 
             String fileHash = hashingService.calculateHash(file.path());
-            if (valkeyStateService.isDuplicate(sessionId, fileHash)) {
-                log.debug("Skipping duplicate file: {}", file.fileName());
+            if (stateService.isDuplicate(settings.sessionId(), fileHash)) {
                 stats.incrementSkipped();
-                valkeyStateService.incrementStat(sessionId, "skipped");
+                stateService.incrementStat(settings.sessionId(), "skipped");
                 return;
             }
 
@@ -148,43 +125,36 @@ public class SyncService {
             }
 
             if (dateTime == null) {
-                if (skipUndated) {
-                    log.debug("Skipping undated file: {}", file.fileName());
+                if (settings.skipUndated()) {
                     stats.incrementSkipped();
-                    valkeyStateService.incrementStat(sessionId, "skipped");
+                    stateService.incrementStat(settings.sessionId(), "skipped");
                     return;
                 }
             }
 
-            Path destinationPath = determineDestinationPath(file, dateTime, destination, undatedFolder);
-            
-            if (execute) {
+            if (settings.execute()) {
                 MediaFile fileWithDate = new MediaFile(file.path(), file.fileName(), file.mediaType(), dateTime, isWhatsApp);
-                CopyResult result = fileCopyService.copy(fileWithDate, destination, undatedFolder, fileHash);
+                CopyResult result = fileCopyService.copy(fileWithDate, settings.destination(), settings.undatedFolder(), fileHash);
                 
                 if (result == CopyResult.SUCCESS) {
                     stats.incrementCopied();
-                    valkeyStateService.markAsProcessed(sessionId, relativePath, fileHash);
-                    valkeyStateService.updateLastProcessedFile(sessionId, relativePath);
-                    valkeyStateService.incrementStat(sessionId, "copied");
-                    if (listener != null) listener.onLogMessage("Copied: " + file.fileName());
+                    stateService.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                    stateService.updateLastProcessedFile(settings.sessionId(), relativePath);
+                    stateService.incrementStat(settings.sessionId(), "copied");
                 } else if (result == CopyResult.SKIPPED) {
                     stats.incrementSkipped();
-                    valkeyStateService.incrementStat(sessionId, "skipped");
-                    if (listener != null) listener.onLogMessage("Skipped: " + file.fileName());
+                    stateService.incrementStat(settings.sessionId(), "skipped");
                 } else {
                     stats.incrementErrors();
-                    valkeyStateService.incrementStat(sessionId, "errors");
-                    if (listener != null) listener.onLogMessage("Error: " + file.fileName());
+                    stateService.incrementStat(settings.sessionId(), "errors");
                 }
             } else {
                 stats.incrementCopied();
             }
         } catch (Exception e) {
             stats.incrementErrors();
-            valkeyStateService.incrementStat(sessionId, "errors");
+            stateService.incrementStat(settings.sessionId(), "errors");
             log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
-            if (listener != null) listener.onLogMessage("FAILED: " + file.fileName() + " - " + e.getMessage());
         }
     }
 
@@ -208,13 +178,6 @@ public class SyncService {
         }
         
         return path.resolve(file.fileName());
-    }
-
-    private String formatFileSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
-        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
 
     private LocalDateTime resolveDate(MediaFile mediaFile) {

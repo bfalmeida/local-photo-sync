@@ -1,6 +1,7 @@
 package com.github.bfalmeida.photosync.cli;
 
 import com.github.bfalmeida.photosync.model.SyncStatistics;
+import com.github.bfalmeida.photosync.model.SyncSettings;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import com.github.bfalmeida.photosync.service.SyncService;
 import org.slf4j.Logger;
@@ -79,11 +80,17 @@ public class SyncCommand {
 
         try {
             String sessionId = java.util.UUID.randomUUID().toString();
-            Path sourcePath = Paths.get(source);
-            Path destinationPath = Paths.get(destination);
+            SyncSettings settings = new SyncSettings(
+                Paths.get(source), 
+                Paths.get(destination), 
+                willExecute, 
+                undatedFolder, 
+                skipUndated, 
+                clearState, 
+                sessionId
+            );
             
-            SyncStatistics stats = syncService.synchronize(sourcePath, destinationPath, willExecute, undatedFolder, skipUndated, clearState, sessionId);
-
+            SyncStatistics stats = syncService.synchronize(settings);
             
             System.out.printf("Found %d files in source folder%n", stats.getFilesFound());
             return stats.toString();

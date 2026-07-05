@@ -1,7 +1,6 @@
 package com.github.bfalmeida.photosync.ui;
 
 import com.github.bfalmeida.photosync.service.SyncService;
-import com.github.bfalmeida.photosync.model.SyncStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,24 +8,19 @@ import org.springframework.stereotype.Component;
 
 import javax.swing.*;
 import java.awt.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 @Component
 public class MainWindow extends JFrame {
     private static final Logger log = LoggerFactory.getLogger(MainWindow.class);
     
-    private final SyncService syncService;
     private final SyncController syncController;
     private JPanel contentPanel;
     private JLabel statusLabel;
     private SyncConfigPanel configPanel;
     private SyncDashboardPanel dashboardPanel;
     private JButton startSyncBtn;
-    private JButton cancelSyncBtn;
 
     public MainWindow(SyncService syncService, SyncController syncController) {
-        this.syncService = syncService;
         this.syncController = syncController;
         setTitle("Local Photo Sync - Vanguard View");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -109,8 +103,6 @@ public class MainWindow extends JFrame {
         syncController.setLogConsumer(m -> SwingUtilities.invokeLater(() -> dashboardPanel.appendLog(m)));
         syncController.setStatusConsumer(s -> SwingUtilities.invokeLater(() -> updateStatus(s)));
         syncController.setCompletionConsumer(sum -> SwingUtilities.invokeLater(() -> {
-            updateStatus("Sync Completed");
-            setSyncEnabled(true);
             dashboardPanel.appendLog(">>> " + sum);
             JOptionPane.showMessageDialog(this, "Sync Finished!\n" + sum, "Success", JOptionPane.INFORMATION_MESSAGE);
         }));
@@ -136,64 +128,32 @@ public class MainWindow extends JFrame {
         boolean clear = configPanel.isClearState();
         boolean skip = configPanel.isSkipUndated();
 
-        // Hardened Validation
         if (source.isEmpty() || dest.isEmpty()) {
-            showError("Paths cannot be empty.");
+            JOptionPane.showMessageDialog(this, "Please specify source and destination paths.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (!Files.isDirectory(Paths.get(source))) {
-            showError("Source path is not a valid directory: " + source);
-            return;
-        }
-
-        if (!Files.isDirectory(Paths.get(dest))) {
-            showError("Destination path is not a valid directory: " + dest);
-            return;
-        }
-
-        setSyncEnabled(false);
-
-        SwingWorker<SyncStatistics, Void> worker = new SwingWorker<>() {
-            @Override
-            protected SyncStatistics doInBackground() {
-                updateStatus("Syncing...");
-                return syncService.synchronize(
-                    Paths.get(source), 
-                    Paths.get(dest), 
-                    true, 
-                    undated, 
-                    skip, 
-                    clear, 
-                    "gui-session-" + System.currentTimeMillis(), 
-                    syncController
-                );
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    SyncStatistics stats = get();
+        // Logic moved to SyncController. View only handles UI state.
+        syncController.executeSync(
+            source, dest, undated, clear, skip, 
+            () -> {
+                SwingUtilities.invokeLater(() -> {
+                    setSyncEnabled(false);
+                    updateStatus("Syncing...");
+                });
+            },
+            () -> {
+                SwingUtilities.invokeLater(() -> {
+                    setSyncEnabled(true);
                     updateStatus("Sync Complete");
-                    setSyncEnabled(true);
-                } catch (Exception e) {
-                    updateStatus("Sync Failed");
-                    setSyncEnabled(true);
-                    showError("Critical Error: " + e.getMessage());
-                }
+                });
             }
-        };
-        
-        worker.execute();
+        );
     }
 
     private void setSyncEnabled(boolean enabled) {
         startSyncBtn.setEnabled(enabled);
         startSyncBtn.setBackground(enabled ? new Color(46, 204, 113) : new Color(100, 100, 100));
-    }
-
-    private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "Operational Error", JOptionPane.ERROR_MESSAGE);
     }
 
     private JButton createNavButton(String text) {
