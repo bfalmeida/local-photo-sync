@@ -15,8 +15,8 @@ public class ValkeyStateService implements SyncStateRepository {
     private final JedisPool jedisPool;
 
     public ValkeyStateService(
-            @Value("${valkey.host:192.168.0.132}") String host,
-            @Value("${valkey.port:6379}") int port,
+            @Value("${valkey.host}") String host,
+            @Value("${valkey.port}") int port,
             @Value("${valkey.password:}") String password) {
         
         JedisPoolConfig poolConfig = new JedisPoolConfig();
@@ -25,7 +25,7 @@ public class ValkeyStateService implements SyncStateRepository {
         poolConfig.setMinIdle(2);
         
         this.jedisPool = new JedisPool(poolConfig, host, port, 2000, password);
-        log.info("Valkey state service initialized at {}:{}", host, port);
+        log.info("Valkey state service initialized using configured host and port.");
     }
 
     @Override
