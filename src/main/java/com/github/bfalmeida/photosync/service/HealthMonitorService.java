@@ -1,8 +1,11 @@
 package com.github.bfalmeida.photosync.service;
 
 import com.github.bfalmeida.photosync.model.HealthStatus;
+import com.github.bfalmeida.photosync.ui.SyncEventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -15,9 +18,30 @@ public class HealthMonitorService {
     private static final Logger log = LoggerFactory.getLogger(HealthMonitorService.class);
     
     private final SyncStateRepository stateRepository;
+    private final SyncEventBus eventBus;
 
-    public HealthMonitorService(SyncStateRepository stateRepository) {
+    public HealthMonitorService(SyncStateRepository stateRepository, SyncEventBus eventBus) {
         this.stateRepository = stateRepository;
+        this.eventBus = eventBus;
+    }
+
+    /**
+     * Scheduled polling engine. Runs every 30 seconds to update system health.
+     */
+    @Scheduled(fixedRate = 30000)
+    public void pollHealth() {
+        log.debug("Executing scheduled health check...");
+        
+        // Check Valkey
+        HealthStatus valkeyStatus = checkValkey();
+        eventBus.publish(SyncEventBus.EventType.LOG, valkeyStatus, 
+            valkeyStatus.healthy() ? "Health: Valkey OK" : "Health: Valkey ERROR - " + valkeyStatus.message());
+
+        // Check Disk (using a generic root path as a proxy for system health, 
+        // since we don't have the specific destination path yet in the service layer)
+        HealthStatus diskStatus = checkDiskSpace(Path.of("/"));
+        eventBus.publish(SyncEventBus.EventType.LOG, diskStatus, 
+            diskStatus.healthy() ? "Health: Disk OK" : "Health: Disk Warning - " + diskStatus.message());
     }
 
     /**
@@ -39,7 +63,7 @@ public class HealthMonitorService {
     }
 
     /**
-     * Checks the available space on the destination drive.
+     * Checks the available space on a specific path.
      */
     public HealthStatus checkDiskSpace(Path destinationPath) {
         try {
