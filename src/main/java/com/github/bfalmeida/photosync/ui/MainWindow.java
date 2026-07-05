@@ -1,21 +1,28 @@
 package com.github.bfalmeida.photosync.ui;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.github.bfalmeida.photosync.service.SyncService;
+import com.github.bfalmeida.photosync.model.SyncStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.swing.*;
 import java.awt.*;
+import java.nio.file.Paths;
 
-public class MainWindow extends JFrame {
+@Component
+public class MainWindow extends JFrame implements SyncProgressListener {
     private static final Logger log = LoggerFactory.getLogger(MainWindow.class);
     
+    private final SyncService syncService;
     private JPanel contentPanel;
     private JLabel statusLabel;
     private SyncConfigPanel configPanel;
     private SyncDashboardPanel dashboardPanel;
 
-    public MainWindow() {
+    public MainWindow(SyncService syncService) {
+        this.syncService = syncService;
         setTitle("Local Photo Sync - Vanguard View");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 700);
@@ -27,7 +34,6 @@ public class MainWindow extends JFrame {
     private void initUI() {
         setLayout(new BorderLayout());
 
-        // 1. Header Bar
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(new Color(45, 45, 48));
         header.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
@@ -39,13 +45,9 @@ public class MainWindow extends JFrame {
 
         JButton settingsBtn = new JButton("Settings");
         header.add(settingsBtn, BorderLayout.EAST);
-        
         add(header, BorderLayout.NORTH);
 
-        // 2. Main Body (Sidebar + Content)
         JPanel body = new JPanel(new BorderLayout());
-        
-        // Sidebar
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setPreferredSize(new Dimension(200, 0));
@@ -61,10 +63,8 @@ public class MainWindow extends JFrame {
         sidebar.add(histBtn);
         sidebar.add(Box.createVerticalStrut(10));
         sidebar.add(confBtn);
-
         body.add(sidebar, BorderLayout.WEST);
 
-        // Content Area
         contentPanel = new JPanel(new CardLayout());
         contentPanel.setBackground(new Color(30, 30, 30));
         
@@ -77,14 +77,15 @@ public class MainWindow extends JFrame {
         CardLayout cl = (CardLayout)(contentPanel.getLayout());
         cl.show(contentPanel, "DASHBOARD");
         
-        // Wiring navigation
         dashBtn.addActionListener(e -> cl.show(contentPanel, "DASHBOARD"));
         confBtn.addActionListener(e -> cl.show(contentPanel, "CONFIG"));
+        
+        // Add the "Start Sync" trigger to the config panel
+        setupSyncTrigger();
         
         body.add(contentPanel, BorderLayout.CENTER);
         add(body, BorderLayout.CENTER);
 
-        // 3. Status Bar
         JPanel statusBar = new JPanel(new BorderLayout());
         statusBar.setPreferredSize(new Dimension(0, 25));
         statusBar.setBackground(new Color(35, 35, 38));
@@ -94,17 +95,112 @@ public class MainWindow extends JFrame {
         statusLabel.setForeground(Color.LIGHT_GRAY);
         statusLabel.setFont(new Font("Monospaced", Font.PLAIN, 12));
         statusBar.add(statusLabel, BorderLayout.WEST);
-        
         add(statusBar, BorderLayout.SOUTH);
+    }
+
+    private void setupSyncTrigger() {
+        JButton startBtn = new JButton("Start Synchronization");
+        startBtn.setBackground(new Color(46, 204, 113));
+        startBtn.setForeground(Color.WHITE);
+        startBtn.setFocusPainted(false);
+        startBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        
+        startBtn.addActionListener(e -> startSyncProcess());
+        
+        // Add to config panel (this requires a method in SyncConfigPanel or just adding it to the panel)
+        // For now, we add it to the bottom of the configPanel
+        configPanel.add(startBtn);
+        configPanel.revalidate();
+    }
+
+    private void startSyncProcess() {
+        String source = configPanel.getSourcePath();
+        String dest = configPanel.getDestPath();
+        String undated = configPanel.getUndatedFolder();
+        boolean clear = configPanel.isClearState();
+        boolean skip = configPanel.isSkipUndated();
+        String sessionId = "gui-session-" + System.currentTimeMillis();
+
+        if (source.isEmpty() || dest.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please specify source and destination paths.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Use SwingWorker to avoid freezing the GUI
+        SwingWorker<SyncStatistics, Void> worker = new SwingWorker<>() {
+            @Override
+            protected SyncStatistics doInBackground() {
+                updateStatus("Syncing...");
+                return syncService.synchronize(
+                    Paths.get(source), 
+                    Paths.get(dest), 
+                    true, 
+                    undated, 
+                    skip, 
+                    clear, 
+                    sessionId, 
+                    MainWindow.this
+                );
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    SyncStatistics stats = get();
+                    updateStatus("Sync Complete");
+                    JOptionPane.showMessageDialog(MainWindow.this, 
+                        String.format("Sync Finished!\nCopied: %d\nSkipped: %d\nErrors: %d", 
+                        stats.getCopied(), stats.getSkipped(), stats.getErrors()), 
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception e) {
+                    updateStatus("Sync Failed");
+                    JOptionPane.showMessageDialog(MainWindow.this, "Critical Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        
+        worker.execute();
     }
 
     private JButton createNavButton(String text) {
         JButton btn = new JButton(text);
-        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btn.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
         btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         return btn;
+    }
+
+    @Override
+    public void onProgressUpdate(int percent, int copied, int skipped, int errors) {
+        SwingUtilities.invokeLater(() -> {
+            dashboardPanel.setProgress(percent);
+            dashboardPanel.updateStats(copied, skipped, errors);
+        });
+    }
+
+    @Override
+    public void onLogMessage(String message) {
+        SwingUtilities.invokeLater(() -> {
+            dashboardPanel.appendLog(message);
+            updateStatus("Processing: " + message);
+        });
+    }
+
+    @Override
+    public void onSyncComplete(boolean success, String finalSummary) {
+        SwingUtilities.invokeLater(() -> {
+            updateStatus("Sync Completed");
+            dashboardPanel.appendLog(">>> " + finalSummary);
+        });
+    }
+
+    @Override
+    public void onSyncError(String errorMessage) {
+        SwingUtilities.invokeLater(() -> {
+            updateStatus("Sync Error");
+            dashboardPanel.appendLog("ERROR: " + errorMessage);
+        });
     }
 
     public void updateStatus(String message) {
