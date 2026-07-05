@@ -12,6 +12,7 @@ public class MainWindow extends JFrame {
     
     private JPanel contentPanel;
     private JLabel statusLabel;
+    private SyncConfigPanel configPanel;
 
     public MainWindow() {
         setTitle("Local Photo Sync - Vanguard View");
@@ -23,7 +24,6 @@ public class MainWindow extends JFrame {
     }
 
     private void initUI() {
-        // Root layout
         setLayout(new BorderLayout());
 
         // 1. Header Bar
@@ -60,17 +60,15 @@ public class MainWindow extends JFrame {
         body.add(sidebar, BorderLayout.WEST);
 
         // Content Area
-        contentPanel = new JPanel(new GridBagLayout());
+        contentPanel = new JPanel(new CardLayout());
         contentPanel.setBackground(new Color(30, 30, 30));
         
-        JLabel welcomeLabel = new JLabel("Welcome to Vanguard View");
-        welcomeLabel.setForeground(Color.GRAY);
-        welcomeLabel.setFont(new Font("SansSerif", Font.ITALIC, 20));
+        configPanel = new SyncConfigPanel();
+        contentPanel.add(configPanel, "CONFIG");
         
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        contentPanel.add(welcomeLabel, gbc);
+        // Default view
+        CardLayout cl = (CardLayout)(contentPanel.getLayout());
+        cl.show(contentPanel, "CONFIG");
         
         body.add(contentPanel, BorderLayout.CENTER);
         add(body, BorderLayout.CENTER);
@@ -100,5 +98,9 @@ public class MainWindow extends JFrame {
 
     public void updateStatus(String message) {
         statusLabel.setText(" " + message);
+    }
+
+    public SyncConfigPanel getConfigPanel() {
+        return configPanel;
     }
 }
