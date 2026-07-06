@@ -177,7 +177,8 @@ public class SyncService {
             }
         } catch (Exception e) {
             stats.incrementErrors();
-            stateRepository.incrementStat(settings.sessionId(), "errors");
+            log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
+        }
             log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
             eventBus.publishLog("FAILED: " + file.fileName() + " - " + e.getMessage());
         }
@@ -220,8 +221,9 @@ public class SyncService {
             BasicFileAttributes attrs = Files.readAttributes(mediaFile.path(), BasicFileAttributes.class);
             Instant instant = attrs.creationTime().toInstant();
             return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        } catch (IOException e) {
-            log.warn("Could not read filesystem attributes for {}: {}", mediaFile.fileName(), e.getMessage());
+        } catch (Exception e) {
+            stats.incrementErrors();
+            log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
         }
         return null;
     }
