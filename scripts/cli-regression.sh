@@ -12,6 +12,11 @@ UNDATED_DIR="$DATASET_ROOT/undated"
 echo "---------------------------------------------------"
 echo "🛡️  PHOTO-SYNC REGRESSION SUITE"
 echo "---------------------------------------------------"
+echo "📍 PROJECT ROOT: $PROJECT_ROOT"
+echo "📂 SOURCE:       $SRC_DIR"
+echo "📂 DESTINATION:  $DEST_DIR"
+echo "📂 UNDATED:      $UNDATED_DIR"
+echo "---------------------------------------------------"
 
 if [ -z "$JAR_FILE" ]; then
     echo "ERROR: No executable JAR found."
