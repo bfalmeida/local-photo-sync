@@ -118,7 +118,6 @@ public class SyncService {
             stats.incrementFound();
             
             String relativePath = settings.source().relativize(file.path()).toString();
-            log.error("[SITREP-STATE] Checking: Session=" + settings.sessionId() + " Path=" + relativePath);
             if (stateRepository.isProcessed(settings.sessionId(), relativePath)) {
                 log.debug("Skipping already synced file: {}", file.fileName());
                 stats.incrementSkipped();
@@ -178,8 +177,6 @@ public class SyncService {
         } catch (Exception e) {
             stats.incrementErrors();
             log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
-        }
-            log.error("Error processing file {}: {}", file.fileName(), e.getMessage());
             eventBus.publishLog("FAILED: " + file.fileName() + " - " + e.getMessage());
         }
     }
@@ -221,9 +218,8 @@ public class SyncService {
             BasicFileAttributes attrs = Files.readAttributes(mediaFile.path(), BasicFileAttributes.class);
             Instant instant = attrs.creationTime().toInstant();
             return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        } catch (Exception e) {
-            stats.incrementErrors();
-            log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
+        } catch (IOException e) {
+            log.warn("Could not read filesystem attributes for {}: {}", mediaFile.fileName(), e.getMessage());
         }
         return null;
     }
