@@ -10,7 +10,7 @@ DEST_DIR="$DATASET_ROOT/destination"
 UNDATED_DIR="$DATASET_ROOT/undated"
 
 echo "---------------------------------------------------"
-echo "🛡️  VANGUARD FULL-SPECTRUM REGRESSION SUITE"
+echo "🛡️  PHOTO-SYNC REGRESSION SUITE"
 echo "---------------------------------------------------"
 
 if [ -z "$JAR_FILE" ]; then

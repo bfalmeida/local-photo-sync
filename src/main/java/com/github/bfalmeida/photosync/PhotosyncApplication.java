@@ -12,18 +12,18 @@ import java.util.List;
 @EnableScheduling
 public class PhotosyncApplication {
     public static void main(String[] args) {
-        System.out.println("[VANGUARD-BOOT] Initializing la-Kernel...");
+        System.out.println("[BOOT] Initializing kernel...");
         
         List<String> argList = new ArrayList<>(Arrays.asList(args));
         boolean cliMode = argList.contains("--cli");
         
         if (cliMode) {
-            System.out.println("[VANGUARD-BOOT] Mode: CLI");
+            System.out.println("[BOOT] Mode: CLI");
             System.setProperty("photosync.mode", "cli");
             // Remove the flag so Spring Shell doesn't try to execute it as a command
             argList.remove("--cli");
         } else {
-            System.out.println("[VANGUARD-BOOT] Mode: GUI");
+            System.out.println("[BOOT] Mode: GUI");
             System.setProperty("photosync.mode", "gui");
         }
 
@@ -33,7 +33,7 @@ public class PhotosyncApplication {
                 context.close();
             }
         } catch (Exception e) {
-            System.err.println("[VANGUARD-FATAL] la-Kernel Crash detected:");
+            System.err.println("[FATAL] Kernel Crash detected:");
             e.printStackTrace();
             System.exit(1);
         }

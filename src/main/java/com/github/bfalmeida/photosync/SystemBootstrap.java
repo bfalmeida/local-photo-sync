@@ -8,16 +8,16 @@ import java.util.Arrays;
  * Bootstrap class to provide high-signal confirmation of system readiness.
  */
 @Component
-public class VanguardBootstrap implements CommandLineRunner {
+public class SystemBootstrap implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
         boolean cliMode = Arrays.asList(args).contains("--cli");
         
         System.out.println("\n" + "=".repeat(60));
-        System.out.println("🛡️  VANGUARD SYSTEM STATUS: ONLINE");
+        System.out.println("🛡️  SYSTEM STATUS: ONLINE");
         System.out.println("- Java Version: " + System.getProperty("java.version"));
-        System.out.println("- Mode: " + (cliMode ? "COMMAND LINE INTERFACE" : "GUI VANGUARD VIEW"));
+        System.out.println("- Mode: " + (cliMode ? "COMMAND LINE INTERFACE" : "GUI VIEW"));
         System.out.println("- Core Engine: OPERATIONAL");
         System.out.println("- Persistence: CONNECTED");
         System.out.println("=".repeat(60));
