@@ -28,7 +28,10 @@ public class PhotosyncApplication {
         }
 
         try {
-            SpringApplication.run(PhotosyncApplication.class, argList.toArray(new String[0]));
+            org.springframework.context.ConfigurableApplicationContext context = SpringApplication.run(PhotosyncApplication.class, argList.toArray(new String[0]));
+            if (cliMode) {
+                context.close();
+            }
         } catch (Exception e) {
             System.err.println("[VANGUARD-FATAL] la-Kernel Crash detected:");
             e.printStackTrace();

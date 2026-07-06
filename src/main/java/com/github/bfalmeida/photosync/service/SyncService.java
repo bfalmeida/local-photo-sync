@@ -118,6 +118,7 @@ public class SyncService {
             stats.incrementFound();
             
             String relativePath = settings.source().relativize(file.path()).toString();
+            log.error("[SITREP-STATE] Checking: Session=" + settings.sessionId() + " Path=" + relativePath);
             if (stateRepository.isProcessed(settings.sessionId(), relativePath)) {
                 log.debug("Skipping already synced file: {}", file.fileName());
                 stats.incrementSkipped();

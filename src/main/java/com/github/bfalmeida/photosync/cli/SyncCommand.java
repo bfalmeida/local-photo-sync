@@ -1,9 +1,10 @@
 package com.github.bfalmeida.photosync.cli;
 
-import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
+import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import com.github.bfalmeida.photosync.service.SyncService;
+import com.github.bfalmeida.photosync.service.SyncStateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.shell.standard.ShellComponent;
@@ -14,11 +15,11 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
-
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.UUID;
 
 @ShellComponent
 public class SyncCommand {
@@ -27,17 +28,19 @@ public class SyncCommand {
 
     private final MediaFileScanner mediaFileScanner;
     private final SyncService syncService;
+    private final SyncStateRepository stateRepository;
 
-    public SyncCommand(MediaFileScanner mediaFileScanner, SyncService syncService) {
+    public SyncCommand(MediaFileScanner mediaFileScanner, SyncService syncService, SyncStateRepository stateRepository) {
         this.mediaFileScanner = mediaFileScanner;
         this.syncService = syncService;
+        this.stateRepository = stateRepository;
     }
 
     @ShellMethod(key = "sync", value = "Synchronize photos from source to destination")
     public String sync(
             @ShellOption(help = "Source directory containing photos") String source,
             @ShellOption(help = "Destination directory for photos") String destination,
-            @ShellOption(defaultValue = "true", help = "Preview changes without executing") boolean dryRun,
+            @ShellOption(defaultValue = "false", help = "Preview changes without executing") boolean dryRun,
             @ShellOption(help = "Execute the sync operation") boolean execute,
             @ShellOption(help = "Folder for files without date metadata") String undatedFolder,
             @ShellOption(help = "Skip files without date metadata") boolean skipUndated,
@@ -46,7 +49,14 @@ public class SyncCommand {
             @ShellOption(defaultValue = "null", help = "Log file path") String logFile
     ) {
         configureLogging(logLevel, logFile);
-
+ 
+        boolean isConnected = stateRepository.ping();
+        if (isConnected) {
+            System.out.println("🟢 VALKEY STATUS: Connected. State persistence active.");
+        } else {
+            System.out.println("🔴 VALKEY STATUS: Disconnected. Running in STATELESS MODE (no persistence).");
+        }
+ 
         log.info("Sync command options received:");
         log.info("  source: {}", source);
         log.info("  destination: {}", destination);
@@ -67,11 +77,13 @@ public class SyncCommand {
         if (!sourceFile.exists() || !sourceFile.isDirectory()) {
             return "Error: Source path does not exist or is not a directory.";
         }
+        Path normalizedSource = sourceFile.toPath().toAbsolutePath().normalize();
 
         File destFile = new File(destination);
         if (destFile.exists() && !destFile.isDirectory()) {
             return "Error: Destination path exists but is not a directory.";
         }
+        Path normalizedDest = destFile.toPath().toAbsolutePath().normalize();
 
         boolean willExecute = execute && !dryRun;
         if (!willExecute) {
@@ -79,10 +91,11 @@ public class SyncCommand {
         }
 
         try {
-            String sessionId = java.util.UUID.randomUUID().toString();
+            String pathPair = normalizedSource + "->" + normalizedDest;
+            String sessionId = java.util.UUID.nameUUIDFromBytes(pathPair.getBytes()).toString();
             SyncSettings settings = new SyncSettings(
-                Paths.get(source), 
-                Paths.get(destination), 
+                normalizedSource, 
+                normalizedDest, 
                 willExecute, 
                 undatedFolder, 
                 skipUndated, 
