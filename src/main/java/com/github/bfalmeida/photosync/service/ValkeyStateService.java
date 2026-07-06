@@ -58,7 +58,8 @@ public class ValkeyStateService implements SyncStateRepository {
             String key = "session:" + sessionId + ":processed";
             return jedis.sismember(key, relativePath);
         } catch (Exception e) {
-            throw new RuntimeException("CRITICAL VALKEY FAILURE in isProcessed: " + e.getMessage(), e);
+            log.error("Error checking processed status in Valkey: {}", e.getMessage());
+            return false;
         }
     }
 
