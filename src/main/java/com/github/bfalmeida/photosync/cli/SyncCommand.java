@@ -50,11 +50,21 @@ public class SyncCommand {
     ) {
         configureLogging(logLevel, logFile);
  
-        boolean isConnected = stateRepository.ping();
+        boolean isConnected = false;
+        String connectionError = "";
+        try {
+            isConnected = stateRepository.ping();
+        } catch (Exception e) {
+            connectionError = e.getMessage();
+        }
+
         if (isConnected) {
             System.out.println("🟢 VALKEY STATUS: Connected. State persistence active.");
         } else {
-            System.out.println("🔴 VALKEY STATUS: Disconnected. Running in STATELESS MODE (no persistence).");
+            System.out.println("🔴 VALKEY STATUS: Disconnected. Running in STATELESS MODE.");
+            if (!connectionError.isEmpty()) {
+                System.out.println("   ↳ REASON: " + connectionError);
+            }
         }
  
         log.info("Sync command options received:");
