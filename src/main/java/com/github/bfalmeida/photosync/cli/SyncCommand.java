@@ -91,7 +91,7 @@ public class SyncCommand {
         }
 
         try {
-            String pathPair = normalizedSource + "->" + normalizedDest;
+            String pathPair = normalizedSource.toRealPath().toString() + "->" + normalizedDest.toRealPath().toString();
             String sessionId = java.util.UUID.nameUUIDFromBytes(pathPair.getBytes()).toString();
             SyncSettings settings = new SyncSettings(
                 normalizedSource, 

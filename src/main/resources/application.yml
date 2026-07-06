@@ -10,7 +10,7 @@ spring:
     banner-mode: console
 
 valkey:
-  host: 127.0.0.1
+  host: 192.168.0.132
   port: 6379
 
 sync:
