@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-PROJECT_ROOT="/root/local-photo-sync"
+# Resolve project root relative to script location
+PROJECT_ROOT=$(dirname "$(readlink -f "$0")")/..
 JAR_FILE=$(find "$PROJECT_ROOT/target" -name "*.jar" ! -name "*sources.jar" ! -name "*javadoc.jar" | head -n 1)
 DATASET_ROOT="$PROJECT_ROOT/test-dataset"
 SRC_DIR="$DATASET_ROOT/source"
