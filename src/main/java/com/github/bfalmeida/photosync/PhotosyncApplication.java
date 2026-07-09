@@ -15,21 +15,21 @@ public class PhotosyncApplication {
         System.out.println("[BOOT] Initializing kernel...");
         
         List<String> argList = new ArrayList<>(Arrays.asList(args));
-        boolean cliMode = argList.contains("--cli");
+        boolean guiMode = argList.contains("--gui");
         
-        if (cliMode) {
-            System.out.println("[BOOT] Mode: CLI");
-            System.setProperty("photosync.mode", "cli");
-            // Remove the flag so Spring Shell doesn't try to execute it as a command
-            argList.remove("--cli");
-        } else {
+        if (guiMode) {
             System.out.println("[BOOT] Mode: GUI");
             System.setProperty("photosync.mode", "gui");
+            // Remove the flag so Spring doesn't try to process it as a command
+            argList.remove("--gui");
+        } else {
+            System.out.println("[BOOT] Mode: CLI");
+            System.setProperty("photosync.mode", "cli");
         }
 
         try {
             org.springframework.context.ConfigurableApplicationContext context = SpringApplication.run(PhotosyncApplication.class, argList.toArray(new String[0]));
-            if (cliMode) {
+            if (!guiMode) {
                 context.close();
             }
         } catch (Exception e) {
