@@ -52,6 +52,8 @@ public class SyncCommand {
  
         boolean isConnected = false;
         String connectionError = "";
+        String connectionInfo = stateRepository.getConnectionInfo();
+
         try {
             isConnected = stateRepository.ping();
         } catch (Exception e) {
@@ -59,9 +61,9 @@ public class SyncCommand {
         }
 
         if (isConnected) {
-            System.out.println("🟢 VALKEY STATUS: Connected. Host: " + stateRepository.getConnectionInfo() + ". State persistence active.");
+            System.out.println("🟢 VALKEY STATUS: Connected. Host: " + connectionInfo + ". State persistence active.");
         } else {
-            System.out.println("🔴 VALKEY STATUS: Disconnected. Running in STATELESS MODE.");
+            System.out.println("🔴 VALKEY STATUS: Disconnected. Host: " + connectionInfo + ". Running in STATELESS MODE.");
             if (!connectionError.isEmpty()) {
                 System.out.println("   ↳ REASON: " + connectionError);
             }
