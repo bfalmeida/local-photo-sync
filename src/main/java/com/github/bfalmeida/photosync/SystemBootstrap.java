@@ -2,6 +2,8 @@ package com.github.bfalmeida.photosync;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 
 /**
@@ -9,23 +11,25 @@ import java.util.Arrays;
  */
 @Component
 public class SystemBootstrap implements CommandLineRunner {
+    private static final Logger logger = LoggerFactory.getLogger(SystemBootstrap.class);
 
     @Override
     public void run(String... args) {
-        boolean cliMode = Arrays.asList(args).contains("--cli");
+        String mode = System.getProperty("photosync.mode", "cli");
+        boolean isGui = "gui".equalsIgnoreCase(mode);
         
-        System.out.println("\n" + "=".repeat(60));
-        System.out.println("🛡️  SYSTEM STATUS: ONLINE");
-        System.out.println("- Java Version: " + System.getProperty("java.version"));
-        System.out.println("- Mode: " + (cliMode ? "COMMAND LINE INTERFACE" : "GUI VIEW"));
-        System.out.println("- Core Engine: OPERATIONAL");
-        System.out.println("- Persistence: CONNECTED");
-        System.out.println("=".repeat(60));
+        logger.info("\n" + "=".repeat(60));
+        logger.info("🛡️  SYSTEM STATUS: ONLINE");
+        logger.info("- Java Version: {}", System.getProperty("java.version"));
+        logger.info("- Mode: {}", (isGui ? "GUI VIEW" : "COMMAND LINE INTERFACE"));
+        logger.info("- Core Engine: OPERATIONAL");
+        logger.info("- Persistence: CONNECTED");
+        logger.info("=".repeat(60));
         
-        if (cliMode) {
-            System.out.println("\nReady for commands. Type 'help' to see available options.\n");
+        if (!isGui) {
+            logger.info("\nReady for commands. Type 'help' to see available options.\n");
         } else {
-            System.out.println("\nGUI launched successfully. Monitoring la-Heartbeat... \n");
+            logger.info("\nGUI launched successfully. Monitoring la-Heartbeat... \n");
         }
     }
 }
