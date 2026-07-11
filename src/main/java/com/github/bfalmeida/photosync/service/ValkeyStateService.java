@@ -2,64 +2,55 @@ package com.github.bfalmeida.photosync.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import glide.api.GlideClient;
-import glide.api.models.GlideString;
-import static glide.api.models.GlideString.gs;
 import java.util.Map;
 
 @Service
 public class ValkeyStateService implements SyncStateRepository {
     private static final Logger log = LoggerFactory.getLogger(ValkeyStateService.class);
-    private final GlideClientManager clientManager;
+    private final StringRedisTemplate redisTemplate;
 
-    public ValkeyStateService(GlideClientManager clientManager) {
-        this.clientManager = clientManager;
-        log.info("Valkey state service initialized using Glide native client.");
-    }
-
-    private GlideClient getClient() {
-        GlideClient client = clientManager.getClient();
-        if (client == null) {
-            throw new IllegalStateException("Valkey Glide Client is not initialized");
-        }
-        return client;
+    public ValkeyStateService(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+        log.info("Valkey state service initialized using Spring Data Redis.");
     }
 
     @Override
     public boolean ping() {
-        return clientManager.isConnected();
+        try {
+            String result = redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<String>) connection -> connection.ping());
+            return "PONG".equalsIgnoreCase(result);
+        } catch (Exception e) {
+            log.error("Redis ping failed: {}", e.getMessage());
+            return false;
+        }
     }
 
     @Override
     public void createSession(String sessionId, String sourcePath, String destinationPath) {
         try {
-            GlideClient client = getClient();
             String key = "session:" + sessionId;
-            
-            Map<GlideString, GlideString> fields = Map.of(
-                gs("source"), gs(sourcePath),
-                gs("destination"), gs(destinationPath),
-                gs("status"), gs("STARTED"),
-                gs("startTime"), gs(String.valueOf(System.currentTimeMillis()))
+            Map<String, String> fields = Map.of(
+                "source", sourcePath,
+                "destination", destinationPath,
+                "status", "STARTED",
+                "startTime", String.valueOf(System.currentTimeMillis())
             );
-            
-            client.hset(gs(key), fields).join();
+            redisTemplate.opsForHash().putAll(key, fields);
             log.debug("Session created: {}", sessionId);
         } catch (Exception e) {
-            log.error("Error creating session in Valkey (Glide): {}", e.getMessage());
+            log.error("Error creating session in Valkey: {}", e.getMessage());
         }
     }
 
     @Override
     public boolean isProcessed(String sessionId, String relativePath) {
         try {
-            GlideClient client = getClient();
             String key = "session:" + sessionId + ":processed";
-            
-            return client.sismember(gs(key), gs(relativePath)).join();
+            return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, relativePath));
         } catch (Exception e) {
-            log.error("Error checking processed status in Valkey (Glide): {}", e.getMessage());
+            log.error("Error checking processed status in Valkey: {}", e.getMessage());
             return false;
         }
     }
@@ -67,26 +58,24 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void markAsProcessed(String sessionId, String relativePath, String fileHash) {
         try {
-            GlideClient client = getClient();
             String processedKey = "session:" + sessionId + ":processed";
             String hashKey = "hashes:global";
             
-            client.sadd(gs(processedKey), new GlideString[]{gs(relativePath)}).join();
-            client.sadd(gs(hashKey), new GlideString[]{gs(fileHash)}).join();
+            redisTemplate.opsForSet().add(processedKey, relativePath);
+            redisTemplate.opsForSet().add(hashKey, fileHash);
             
             log.debug("Marked as processed: {}", relativePath);
         } catch (Exception e) {
-            log.error("Error marking processed in Valkey (Glide): {}", e.getMessage());
+            log.error("Error marking processed in Valkey: {}", e.getMessage());
         }
     }
 
     @Override
     public boolean isDuplicate(String sessionId, String fileHash) {
         try {
-            GlideClient client = getClient();
-            return client.sismember(gs("hashes:global"), gs(fileHash)).join();
+            return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember("hashes:global", fileHash));
         } catch (Exception e) {
-            log.error("Error checking duplicate in Valkey (Glide): {}", e.getMessage());
+            log.error("Error checking duplicate in Valkey: {}", e.getMessage());
             return false;
         }
     }
@@ -94,47 +83,38 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void updateLastProcessedFile(String sessionId, String relativePath) {
         try {
-            GlideClient client = getClient();
-            client.set(gs("session:" + sessionId + ":last_file"), gs(relativePath)).join();
+            redisTemplate.opsForValue().set("session:" + sessionId + ":last_file", relativePath);
         } catch (Exception e) {
-            log.error("Error updating last file in Valkey (Glide): {}", e.getMessage());
+            log.error("Error updating last file in Valkey: {}", e.getMessage());
         }
     }
 
     @Override
     public void updateSessionStatus(String sessionId, String status) {
         try {
-            GlideClient client = getClient();
-            client.hset(gs("session:" + sessionId), Map.of(gs("status"), gs(status))).join();
+            redisTemplate.opsForHash().put("session:" + sessionId, "status", status);
         } catch (Exception e) {
-            log.error("Error updating session status in Valkey (Glide): {}", e.getMessage());
+            log.error("Error updating session status in Valkey: {}", e.getMessage());
         }
     }
 
     @Override
     public void incrementStat(String sessionId, String statName) {
         try {
-            GlideClient client = getClient();
             String key = "session:" + sessionId + ":stats";
-            
-            // Since hincrby is not directly available in the current Glide version,
-            // we implement a read-modify-write cycle for stats.
-            String currentVal = client.hget(gs(key), gs(statName)).join().toString();
-            int nextVal = (currentVal == null) ? 1 : Integer.parseInt(currentVal) + 1;
-            client.hset(gs(key), Map.of(gs(statName), gs(String.valueOf(nextVal)))).join();
+            redisTemplate.opsForHash().increment(key, statName, 1);
         } catch (Exception e) {
-            log.error("Error incrementing stat in Valkey (Glide): {}", e.getMessage());
+            log.error("Error incrementing stat in Valkey: {}", e.getMessage());
         }
     }
 
     @Override
     public void flushDb() {
         try {
-            GlideClient client = getClient();
-            client.flushdb().join();
+            redisTemplate.getConnectionFactory().getConnection().flushDb();
             log.info("Valkey database flushed.");
         } catch (Exception e) {
-            log.error("Error flushing Valkey (Glide): {}", e.getMessage());
+            log.error("Error flushing Valkey: {}", e.getMessage());
         }
     }
 }
