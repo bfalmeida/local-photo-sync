@@ -8,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import javax.swing.*;
+import java.awt.GraphicsEnvironment;
 
 @Component
 public class GuiLauncher implements CommandLineRunner {
@@ -20,13 +21,18 @@ public class GuiLauncher implements CommandLineRunner {
     public void run(String... args) {
         String mode = System.getProperty("photosync.mode", "gui");
         if ("gui".equalsIgnoreCase(mode)) {
+            if (GraphicsEnvironment.isHeadless()) {
+                log.warn("GUI mode requested, but environment is headless. Skipping GUI launch to prevent crash.");
+                return;
+            }
+            
             log.info("GUI mode detected. Waking up MainWindow...");
             SwingUtilities.invokeLater(() -> {
                 try {
                     mainWindowProvider.getIfAvailable().setVisible(true);
                     log.info("MainWindow is now visible.");
                 } catch (Exception e) {
-                    log.error("Failed to wake up MainWindow: {}", e.getMessage());
+                    log.error("Failed to wake up MainWindow", e);
                 }
             });
         } else {
