@@ -2,6 +2,7 @@ package com.github.bfalmeida.photosync.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import java.util.Map;
@@ -10,6 +11,12 @@ import java.util.Map;
 public class ValkeyStateService implements SyncStateRepository {
     private static final Logger log = LoggerFactory.getLogger(ValkeyStateService.class);
     private final StringRedisTemplate redisTemplate;
+
+    @Value("${valkey.host:127.0.0.1}")
+    private String host;
+
+    @Value("${valkey.port:6379}")
+    private String port;
 
     public ValkeyStateService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -116,5 +123,10 @@ public class ValkeyStateService implements SyncStateRepository {
         } catch (Exception e) {
             log.error("Error flushing Valkey: {}", e.getMessage());
         }
+    }
+
+    @Override
+    public String getConnectionInfo() {
+        return host + ":" + port;
     }
 }

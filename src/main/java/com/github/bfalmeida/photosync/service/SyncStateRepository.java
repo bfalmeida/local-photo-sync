@@ -29,6 +29,11 @@ public interface SyncStateRepository {
     boolean ping();
 
     /**
+     * Returns the connection information for the persistence layer.
+     */
+    String getConnectionInfo();
+
+    /**
      * Checks if a file hash already exists globally across all sessions.
      */
     boolean isDuplicate(String sessionId, String fileHash);

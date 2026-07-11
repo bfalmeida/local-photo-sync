@@ -59,7 +59,7 @@ public class SyncCommand {
         }
 
         if (isConnected) {
-            System.out.println("🟢 VALKEY STATUS: Connected. State persistence active.");
+            System.out.println("🟢 VALKEY STATUS: Connected. Host: " + stateRepository.getConnectionInfo() + ". State persistence active.");
         } else {
             System.out.println("🔴 VALKEY STATUS: Disconnected. Running in STATELESS MODE.");
             if (!connectionError.isEmpty()) {
