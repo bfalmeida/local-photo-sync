@@ -24,6 +24,16 @@ public interface SyncStateRepository {
     void markAsProcessed(String sessionId, String relativePath, String fileHash);
 
     /**
+     * Records a synchronization error for a specific file.
+     */
+    void markAsError(String sessionId, String relativePath, String errorMessage);
+
+    /**
+     * Marks a file as skipped and records the reason.
+     */
+    void markAsSkipped(String sessionId, String relativePath, String reason);
+
+    /**
      * Verifies connectivity to the persistence layer.
      */
     boolean ping();
