@@ -10,6 +10,7 @@ import java.util.Map;
 @Service
 public class ValkeyStateService implements SyncStateRepository {
     private static final Logger log = LoggerFactory.getLogger(ValkeyStateService.class);
+    private static final String ROOT_PREFIX = "local-photo-sync:";
     private final StringRedisTemplate redisTemplate;
 
     @Value("${valkey.host:127.0.0.1}")
@@ -37,7 +38,7 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void createSession(String sessionId, String sourcePath, String destinationPath) {
         try {
-            String key = "session:" + sessionId;
+            String key = ROOT_PREFIX + "session:" + sessionId;
             Map<String, String> fields = Map.of(
                 "source", sourcePath,
                 "destination", destinationPath,
@@ -54,8 +55,8 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public boolean isProcessed(String sessionId, String relativePath) {
         try {
-            String key = "session:" + sessionId + ":processed";
-            return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, relativePath));
+            String key = ROOT_PREFIX + "session:" + sessionId + ":processed";
+            return Boolean.TRUE.equals(redisTemplate.opsForHash().hasKey(key, relativePath));
         } catch (Exception e) {
             log.error("Error checking processed status in Valkey: {}", e.getMessage());
             return false;
@@ -65,10 +66,10 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void markAsProcessed(String sessionId, String relativePath, String fileHash) {
         try {
-            String processedKey = "session:" + sessionId + ":processed";
-            String hashKey = "hashes:global";
+            String processedKey = ROOT_PREFIX + "session:" + sessionId + ":processed";
+            String hashKey = ROOT_PREFIX + "hashes:global";
             
-            redisTemplate.opsForSet().add(processedKey, relativePath);
+            redisTemplate.opsForHash().put(processedKey, relativePath, String.valueOf(System.currentTimeMillis()));
             redisTemplate.opsForSet().add(hashKey, fileHash);
             
             log.debug("Marked as processed: {}", relativePath);
@@ -78,9 +79,32 @@ public class ValkeyStateService implements SyncStateRepository {
     }
 
     @Override
+    public void markAsError(String sessionId, String relativePath, String errorMessage) {
+        try {
+            String errorKey = ROOT_PREFIX + "session:" + sessionId + ":errors";
+            redisTemplate.opsForHash().put(errorKey, relativePath, errorMessage);
+            log.error("Error recorded for {}: {}", relativePath, errorMessage);
+        } catch (Exception e) {
+            log.error("Error marking error in Valkey: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void markAsSkipped(String sessionId, String relativePath, String reason) {
+        try {
+            String skippedKey = ROOT_PREFIX + "session:" + sessionId + ":skipped";
+            String value = reason + "|" + System.currentTimeMillis();
+            redisTemplate.opsForHash().put(skippedKey, relativePath, value);
+            log.debug("Marked as skipped: {} (reason: {})", relativePath, reason);
+        } catch (Exception e) {
+            log.error("Error marking skipped in Valkey: {}", e.getMessage());
+        }
+    }
+
+    @Override
     public boolean isDuplicate(String sessionId, String fileHash) {
         try {
-            return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember("hashes:global", fileHash));
+            return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(ROOT_PREFIX + "hashes:global", fileHash));
         } catch (Exception e) {
             log.error("Error checking duplicate in Valkey: {}", e.getMessage());
             return false;
@@ -90,7 +114,7 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void updateLastProcessedFile(String sessionId, String relativePath) {
         try {
-            redisTemplate.opsForValue().set("session:" + sessionId + ":last_file", relativePath);
+            redisTemplate.opsForValue().set(ROOT_PREFIX + "session:" + sessionId + ":last_file", relativePath);
         } catch (Exception e) {
             log.error("Error updating last file in Valkey: {}", e.getMessage());
         }
@@ -99,7 +123,7 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void updateSessionStatus(String sessionId, String status) {
         try {
-            redisTemplate.opsForHash().put("session:" + sessionId, "status", status);
+            redisTemplate.opsForHash().put(ROOT_PREFIX + "session:" + sessionId, "status", status);
         } catch (Exception e) {
             log.error("Error updating session status in Valkey: {}", e.getMessage());
         }
@@ -108,7 +132,7 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public void incrementStat(String sessionId, String statName) {
         try {
-            String key = "session:" + sessionId + ":stats";
+            String key = ROOT_PREFIX + "session:" + sessionId + ":stats";
             redisTemplate.opsForHash().increment(key, statName, 1);
         } catch (Exception e) {
             log.error("Error incrementing stat in Valkey: {}", e.getMessage());

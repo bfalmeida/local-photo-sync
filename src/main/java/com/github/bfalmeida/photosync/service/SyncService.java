@@ -137,6 +137,7 @@ public class SyncService {
                 stats.incrementSkipped();
                 if (settings.useValkey()) {
                     stateRepository.incrementStat(settings.sessionId(), "skipped");
+                    stateRepository.markAsSkipped(settings.sessionId(), relativePath, "Duplicate");
                 }
                 return;
             }
@@ -155,6 +156,7 @@ public class SyncService {
                     stats.incrementSkipped();
                     if (settings.useValkey()) {
                         stateRepository.incrementStat(settings.sessionId(), "skipped");
+                        stateRepository.markAsSkipped(settings.sessionId(), relativePath, "Undated");
                     }
                     return;
                 }
@@ -194,6 +196,11 @@ public class SyncService {
             stats.incrementErrors();
             log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
             eventBus.publishLog("FAILED: " + file.fileName() + " - " + e.getMessage());
+            
+            String relativePath = settings.source().relativize(file.path()).toString();
+            if (settings.useValkey()) {
+                stateRepository.markAsError(settings.sessionId(), relativePath, e.getMessage());
+            }
         }
     }
 
