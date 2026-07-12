@@ -27,6 +27,14 @@ public class MediaFileScanner {
         Stream<Path> paths = Files.walk(sourceDirectory);
         return paths
                 .filter(Files::isRegularFile)
+                .filter(path -> !path.getFileName().toString().startsWith("."))
+                .filter(path -> {
+                    try {
+                        return Files.size(path) > 0;
+                    } catch (IOException e) {
+                        return false;
+                    }
+                })
                 .map(this::toMediaFile)
                 .filter(f -> f != null);
     }
