@@ -45,30 +45,35 @@ public class SyncCommand {
             @ShellOption(help = "Folder for files without date metadata") String undatedFolder,
             @ShellOption(help = "Skip files without date metadata") boolean skipUndated,
             @ShellOption(help = "Reset the Valkey sync state") boolean clearState,
+            @ShellOption(defaultValue = "false", help = "Enable Valkey state persistence") boolean useValkey,
             @ShellOption(defaultValue = "INFO", help = "Logging level (DEBUG, INFO, WARN, ERROR)") String logLevel,
             @ShellOption(defaultValue = "null", help = "Log file path") String logFile
     ) {
         configureLogging(logLevel, logFile);
- 
-        boolean isConnected = false;
-        String connectionError = "";
-        String connectionInfo = stateRepository.getConnectionInfo();
 
-        try {
-            isConnected = stateRepository.ping();
-        } catch (Exception e) {
-            connectionError = e.getMessage();
-        }
-
-        if (isConnected) {
-            System.out.println("🟢 VALKEY STATUS: Connected. Host: " + connectionInfo + ". State persistence active.");
+        if (!useValkey) {
+            System.out.println("⚪ VALKEY STATUS: Disabled. Running in STATELESS MODE.");
         } else {
-            System.out.println("🔴 VALKEY STATUS: Disconnected. Host: " + connectionInfo + ". Running in STATELESS MODE.");
-            if (!connectionError.isEmpty()) {
-                System.out.println("   ↳ REASON: " + connectionError);
+            boolean isConnected = false;
+            String connectionError = "";
+            String connectionInfo = stateRepository.getConnectionInfo();
+
+            try {
+                isConnected = stateRepository.ping();
+            } catch (Exception e) {
+                connectionError = e.getMessage();
+            }
+
+            if (isConnected) {
+                System.out.println("🟢 VALKEY STATUS: Connected. Host: " + connectionInfo + ". State persistence active.");
+            } else {
+                System.out.println("🔴 VALKEY STATUS: Disconnected. Host: " + connectionInfo + ". Running in STATELESS MODE.");
+                if (!connectionError.isEmpty()) {
+                    System.out.println("   ↳ REASON: " + connectionError);
+                }
             }
         }
- 
+
         log.info("Sync command options received:");
         log.info("  source: {}", source);
         log.info("  destination: {}", destination);
@@ -77,6 +82,7 @@ public class SyncCommand {
         log.info("  undated-folder: {}", undatedFolder);
         log.info("  skip-undated: {}", skipUndated);
         log.info("  clear-state: {}", clearState);
+        log.info("  use-valkey: {}", useValkey);
 
         if (source == null || source.isBlank()) {
             return "Error: Source directory is required.";
@@ -112,7 +118,8 @@ public class SyncCommand {
                 undatedFolder, 
                 skipUndated, 
                 clearState, 
-                sessionId
+                sessionId,
+                useValkey
             );
             
             SyncStatistics stats = syncService.synchronize(settings);
