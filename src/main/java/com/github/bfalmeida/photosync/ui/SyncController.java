@@ -74,7 +74,8 @@ public class SyncController {
             undated, 
             skip, 
             clear,
-            "gui-session-" + System.currentTimeMillis()
+            "gui-session-" + System.currentTimeMillis(),
+            false
         );
 
         SwingWorker<SyncStatistics, Void> worker = new SwingWorker<>() {
