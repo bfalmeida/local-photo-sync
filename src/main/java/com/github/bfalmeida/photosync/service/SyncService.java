@@ -169,6 +169,9 @@ public class SyncService {
                 CopyResult result = fileCopyService.copy(fileWithDate, settings.destination(), settings.undatedFolder(), fileHash);
                 
                 if (result == CopyResult.SUCCESS) {
+                    if (settings.modifySource()) {
+                        exifMetadataService.harmonizeDate(file);
+                    }
                     stats.incrementCopied();
                     if (settings.useValkey()) {
                         stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
@@ -177,6 +180,7 @@ public class SyncService {
                     }
                     eventBus.publishLog("Copied: " + file.fileName());
                 } else if (result == CopyResult.SKIPPED) {
+
                     stats.incrementSkipped();
                     if (settings.useValkey()) {
                         stateRepository.incrementStat(settings.sessionId(), "skipped");
@@ -230,7 +234,6 @@ public class SyncService {
         Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = filenameDateExtractor.extract(mediaFile.fileName());
         if (filenameDateOpt.isPresent()) {
             FilenameDateExtractor.DateInfo info = filenameDateOpt.get();
-            exifMetadataService.harmonizeDate(mediaFile);
             return LocalDateTime.of(info.year(), info.month(), 1, 0, 0, 0);
         }
         Optional<LocalDateTime> exifDate = exifMetadataService.readExifDate(mediaFile);
