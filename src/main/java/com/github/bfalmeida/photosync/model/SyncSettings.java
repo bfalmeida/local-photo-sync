@@ -13,5 +13,6 @@ public record SyncSettings(
     String undatedFolder,
     boolean skipUndated,
     boolean clearState,
-    String sessionId
+    String sessionId,
+    boolean useValkey
 ) {}

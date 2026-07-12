@@ -57,7 +57,7 @@ public class SyncService {
         SyncStatistics stats = new SyncStatistics();
         
         try {
-            if (settings.clearState()) {
+            if (settings.clearState() && settings.useValkey()) {
                 log.info("Clearing sync state as requested.");
                 stateRepository.flushDb();
             }
@@ -68,7 +68,9 @@ public class SyncService {
                 return stats;
             }
 
-            stateRepository.createSession(settings.sessionId(), settings.source().toString(), settings.destination().toString());
+            if (settings.useValkey()) {
+                stateRepository.createSession(settings.sessionId(), settings.source().toString(), settings.destination().toString());
+            }
 
             ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 threadCount, threadCount, 0L, TimeUnit.MILLISECONDS,
@@ -100,7 +102,9 @@ public class SyncService {
                 }
             }
 
-            stateRepository.updateSessionStatus(settings.sessionId(), "COMPLETED");
+            if (settings.useValkey()) {
+                stateRepository.updateSessionStatus(settings.sessionId(), "COMPLETED");
+            }
             eventBus.publish(SyncEventBus.EventType.COMPLETE, null, 
                 String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d", 
                 stats.getCopied(), stats.getSkipped(), stats.getErrors()));
@@ -118,18 +122,22 @@ public class SyncService {
             stats.incrementFound();
             
             String relativePath = settings.source().relativize(file.path()).toString();
-            if (stateRepository.isProcessed(settings.sessionId(), relativePath)) {
+            if (settings.useValkey() && stateRepository.isProcessed(settings.sessionId(), relativePath)) {
                 log.debug("Skipping already synced file: {}", file.fileName());
                 stats.incrementSkipped();
-                stateRepository.incrementStat(settings.sessionId(), "skipped");
+                if (settings.useValkey()) {
+                    stateRepository.incrementStat(settings.sessionId(), "skipped");
+                }
                 return;
             }
 
             String fileHash = hashingService.calculateHash(file.path());
-            if (stateRepository.isDuplicate(settings.sessionId(), fileHash)) {
+            if (settings.useValkey() && stateRepository.isDuplicate(settings.sessionId(), fileHash)) {
                 log.debug("Skipping duplicate file: {}", file.fileName());
                 stats.incrementSkipped();
-                stateRepository.incrementStat(settings.sessionId(), "skipped");
+                if (settings.useValkey()) {
+                    stateRepository.incrementStat(settings.sessionId(), "skipped");
+                }
                 return;
             }
 
@@ -145,7 +153,9 @@ public class SyncService {
                 if (settings.skipUndated()) {
                     log.debug("Skipping undated file: {}", file.fileName());
                     stats.incrementSkipped();
-                    stateRepository.incrementStat(settings.sessionId(), "skipped");
+                    if (settings.useValkey()) {
+                        stateRepository.incrementStat(settings.sessionId(), "skipped");
+                    }
                     return;
                 }
             }
@@ -158,17 +168,23 @@ public class SyncService {
                 
                 if (result == CopyResult.SUCCESS) {
                     stats.incrementCopied();
-                    stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
-                    stateRepository.updateLastProcessedFile(settings.sessionId(), relativePath);
-                    stateRepository.incrementStat(settings.sessionId(), "copied");
+                    if (settings.useValkey()) {
+                        stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                        stateRepository.updateLastProcessedFile(settings.sessionId(), relativePath);
+                        stateRepository.incrementStat(settings.sessionId(), "copied");
+                    }
                     eventBus.publishLog("Copied: " + file.fileName());
                 } else if (result == CopyResult.SKIPPED) {
                     stats.incrementSkipped();
-                    stateRepository.incrementStat(settings.sessionId(), "skipped");
+                    if (settings.useValkey()) {
+                        stateRepository.incrementStat(settings.sessionId(), "skipped");
+                    }
                     eventBus.publishLog("Skipped: " + file.fileName());
                 } else {
                     stats.incrementErrors();
-                    stateRepository.incrementStat(settings.sessionId(), "errors");
+                    if (settings.useValkey()) {
+                        stateRepository.incrementStat(settings.sessionId(), "errors");
+                    }
                     eventBus.publishLog("Error: " + file.fileName());
                 }
             } else {
