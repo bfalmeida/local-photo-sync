@@ -75,6 +75,7 @@ public class SyncController {
             skip, 
             clear,
             "gui-session-" + System.currentTimeMillis(),
+            false,
             false
         );
 

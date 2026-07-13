@@ -14,5 +14,6 @@ public record SyncSettings(
     boolean skipUndated,
     boolean clearState,
     String sessionId,
-    boolean useValkey
+    boolean useValkey,
+    boolean modifySource
 ) {}

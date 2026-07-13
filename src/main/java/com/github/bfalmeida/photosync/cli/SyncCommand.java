@@ -119,7 +119,8 @@ public class SyncCommand {
                 skipUndated, 
                 clearState, 
                 sessionId,
-                useValkey
+                useValkey,
+                false
             );
             
             SyncStatistics stats = syncService.synchronize(settings);

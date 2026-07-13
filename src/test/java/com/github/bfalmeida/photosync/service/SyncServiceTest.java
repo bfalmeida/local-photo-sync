@@ -47,7 +47,7 @@ class SyncServiceTest {
         Files.createDirectories(source);
         Files.createDirectories(dest);
 
-        SyncSettings settings = new SyncSettings(source, dest, true, "undated", false, false, "test-session", true);
+        SyncSettings settings = new SyncSettings(source, dest, true, "undated", false, false, "test-session", true, false);
         
         // Mock scanner to return empty for basic flow
         when(scanner.scan(any())).thenReturn(java.util.stream.Stream.empty());

@@ -12,8 +12,8 @@ spring:
 valkey:
   host: 127.0.0.1
   port: 6379
-  user: proxmox
-  password: your_password_here
+  user: 
+  password: 
 
 sync:
   threads: 4
