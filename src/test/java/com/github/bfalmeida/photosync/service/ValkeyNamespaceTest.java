@@ -29,11 +29,14 @@ public class ValkeyNamespaceTest {
         stateService.markAsError(sessionId, path + "2", error);
         stateService.markAsSkipped(sessionId, path + "3", reason);
 
-        // Verify ROOT_PREFIX = "local-photo-sync:"
-        assertTrue(redisTemplate.hasKey("local-photo-sync:session:" + sessionId), "Session key missing root prefix");
-        assertTrue(redisTemplate.hasKey("local-photo-sync:session:" + sessionId + ":processed"), "Processed key missing root prefix");
-        assertTrue(redisTemplate.hasKey("local-photo-sync:session:" + sessionId + ":errors"), "Error key missing root prefix");
-        assertTrue(redisTemplate.hasKey("local-photo-sync:session:" + sessionId + ":skipped"), "Skipped key missing root prefix");
-        assertTrue(redisTemplate.hasKey("local-photo-sync:hashes:global"), "Global hashes key missing root prefix");
+        // Get the configured namespace from the service
+        String configuredPrefix = stateService.getRootPrefix();
+        
+        // Verify ROOT_PREFIX matches configured namespace
+        assertTrue(redisTemplate.hasKey(configuredPrefix + "session:" + sessionId), "Session key missing root prefix");
+        assertTrue(redisTemplate.hasKey(configuredPrefix + "session:" + sessionId + ":processed"), "Processed key missing root prefix");
+        assertTrue(redisTemplate.hasKey(configuredPrefix + "session:" + sessionId + ":errors"), "Error key missing root prefix");
+        assertTrue(redisTemplate.hasKey(configuredPrefix + "session:" + sessionId + ":skipped"), "Skipped key missing root prefix");
+        assertTrue(redisTemplate.hasKey(configuredPrefix + "hashes:global"), "Global hashes key missing root prefix");
     }
 }
