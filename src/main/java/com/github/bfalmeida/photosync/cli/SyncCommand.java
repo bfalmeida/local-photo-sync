@@ -5,6 +5,7 @@ import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import com.github.bfalmeida.photosync.service.SyncService;
 import com.github.bfalmeida.photosync.service.SyncStateRepository;
+import com.github.bfalmeida.photosync.service.ValkeyResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.shell.standard.ShellComponent;
@@ -58,8 +59,13 @@ public class SyncCommand {
             String connectionError = "";
             String connectionInfo = stateRepository.getConnectionInfo();
 
+            // Handle ValkeyResult from ping()
             try {
-                isConnected = stateRepository.ping();
+                ValkeyResult<Boolean> pingResult = stateRepository.ping();
+                isConnected = pingResult.isSuccess() && Boolean.TRUE.equals(pingResult.getValue());
+                if (pingResult.isFailure()) {
+                    connectionError = pingResult.getError().getCode() + ": " + pingResult.getError().getMessage();
+                }
             } catch (Exception e) {
                 connectionError = e.getMessage();
             }

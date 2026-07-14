@@ -31,18 +31,18 @@ public class ValkeyStateService implements SyncStateRepository {
     }
 
     @Override
-    public boolean ping() {
+    public ValkeyResult<Boolean> ping() {
         try {
             String result = redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<String>) connection -> connection.ping());
-            return "PONG".equalsIgnoreCase(result);
+            return ValkeyResult.success("PONG".equalsIgnoreCase(result));
         } catch (Exception e) {
             log.error("Redis ping failed: {}", e.getMessage());
-            return false;
+            return ValkeyResult.failure(ValkeyError.CONNECTION_FAILED);
         }
     }
 
     @Override
-    public void createSession(String sessionId, String sourcePath, String destinationPath) {
+    public ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath) {
         try {
             String key = rootPrefix + "session:" + sessionId;
             Map<String, String> fields = Map.of(
@@ -53,24 +53,26 @@ public class ValkeyStateService implements SyncStateRepository {
             );
             redisTemplate.opsForHash().putAll(key, fields);
             log.debug("Session created: {}", sessionId);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error creating session in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.SESSION_CREATE_FAILED);
         }
     }
 
     @Override
-    public boolean isProcessed(String sessionId, String relativePath) {
+    public ValkeyResult<Boolean> isProcessed(String sessionId, String relativePath) {
         try {
             String key = rootPrefix + "session:" + sessionId + ":processed";
-            return Boolean.TRUE.equals(redisTemplate.opsForHash().hasKey(key, relativePath));
+            return ValkeyResult.success(Boolean.TRUE.equals(redisTemplate.opsForHash().hasKey(key, relativePath)));
         } catch (Exception e) {
             log.error("Error checking processed status in Valkey: {}", e.getMessage());
-            return false;
+            return ValkeyResult.failure(ValkeyError.PROCESSED_CHECK_FAILED);
         }
     }
 
     @Override
-    public void markAsProcessed(String sessionId, String relativePath, String fileHash) {
+    public ValkeyResult<Void> markAsProcessed(String sessionId, String relativePath, String fileHash) {
         try {
             String processedKey = rootPrefix + "session:" + sessionId + ":processed";
             String hashKey = rootPrefix + "hashes:global";
@@ -79,79 +81,93 @@ public class ValkeyStateService implements SyncStateRepository {
             redisTemplate.opsForSet().add(hashKey, fileHash);
             
             log.debug("Marked as processed: {}", relativePath);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error marking processed in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.PROCESSED_MARK_FAILED);
         }
     }
 
     @Override
-    public void markAsError(String sessionId, String relativePath, String errorMessage) {
+    public ValkeyResult<Void> markAsError(String sessionId, String relativePath, String errorMessage) {
         try {
             String errorKey = rootPrefix + "session:" + sessionId + ":errors";
             redisTemplate.opsForHash().put(errorKey, relativePath, errorMessage);
             log.error("Error recorded for {}: {}", relativePath, errorMessage);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error marking error in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.ERROR_RECORD_FAILED);
         }
     }
 
     @Override
-    public void markAsSkipped(String sessionId, String relativePath, String reason) {
+    public ValkeyResult<Void> markAsSkipped(String sessionId, String relativePath, String reason) {
         try {
             String skippedKey = rootPrefix + "session:" + sessionId + ":skipped";
             String value = reason + "|" + System.currentTimeMillis();
             redisTemplate.opsForHash().put(skippedKey, relativePath, value);
             log.debug("Marked as skipped: {} (reason: {})", relativePath, reason);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error marking skipped in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.SKIP_RECORD_FAILED);
         }
     }
 
     @Override
-    public boolean isDuplicate(String sessionId, String fileHash) {
+    public ValkeyResult<Boolean> isDuplicate(String sessionId, String fileHash) {
         try {
-            return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(rootPrefix + "hashes:global", fileHash));
+            return ValkeyResult.success(Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(rootPrefix + "hashes:global", fileHash)));
         } catch (Exception e) {
             log.error("Error checking duplicate in Valkey: {}", e.getMessage());
-            return false;
+            return ValkeyResult.failure(ValkeyError.DUPLICATE_CHECK_FAILED);
         }
     }
 
     @Override
-    public void updateLastProcessedFile(String sessionId, String relativePath) {
+    public ValkeyResult<Void> updateLastProcessedFile(String sessionId, String relativePath) {
         try {
             redisTemplate.opsForValue().set(rootPrefix + "session:" + sessionId + ":last_file", relativePath);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error updating last file in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.LAST_FILE_UPDATE_FAILED);
         }
     }
 
     @Override
-    public void updateSessionStatus(String sessionId, String status) {
+    public ValkeyResult<Void> updateSessionStatus(String sessionId, String status) {
         try {
             redisTemplate.opsForHash().put(rootPrefix + "session:" + sessionId, "status", status);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error updating session status in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.STATUS_UPDATE_FAILED);
         }
     }
 
     @Override
-    public void incrementStat(String sessionId, String statName) {
+    public ValkeyResult<Void> incrementStat(String sessionId, String statName) {
         try {
             String key = rootPrefix + "session:" + sessionId + ":stats";
             redisTemplate.opsForHash().increment(key, statName, 1);
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error incrementing stat in Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.STAT_INCREMENT_FAILED);
         }
     }
 
     @Override
-    public void flushDb() {
+    public ValkeyResult<Void> flushDb() {
         try {
             redisTemplate.getConnectionFactory().getConnection().flushDb();
             log.info("Valkey database flushed.");
+            return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error flushing Valkey: {}", e.getMessage());
+            return ValkeyResult.failure(ValkeyError.FLUSH_FAILED);
         }
     }
 

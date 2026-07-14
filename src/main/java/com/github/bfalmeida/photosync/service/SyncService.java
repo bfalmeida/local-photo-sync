@@ -35,9 +35,9 @@ public class SyncService {
     private final int threadCount;
     private final SyncEventBus eventBus;
 
-    public SyncService(MediaFileScanner mediaFileScanner, 
-                      FilenameDateExtractor filenameDateExtractor, 
-                      ExifMetadataService exifMetadataService, 
+    public SyncService(MediaFileScanner mediaFileScanner,
+                      FilenameDateExtractor filenameDateExtractor,
+                      ExifMetadataService exifMetadataService,
                       FileCopyService fileCopyService,
                       SyncStateRepository stateRepository,
                       HashingService hashingService,
@@ -59,7 +59,10 @@ public class SyncService {
         try {
             if (settings.clearState() && settings.useValkey()) {
                 log.info("Clearing sync state as requested.");
-                stateRepository.flushDb();
+                ValkeyResult<Void> flushResult = stateRepository.flushDb();
+                if (flushResult.isFailure()) {
+                    log.warn("Failed to flush state: {}", flushResult.getError().getMessage());
+                }
             }
 
             if (!Files.exists(settings.source())) {
@@ -69,7 +72,12 @@ public class SyncService {
             }
 
             if (settings.useValkey()) {
-                stateRepository.createSession(settings.sessionId(), settings.source().toString(), settings.destination().toString());
+                ValkeyResult<Void> sessionResult = stateRepository.createSession(
+                    settings.sessionId(), settings.source().toString(), settings.destination().toString());
+                if (sessionResult.isFailure()) {
+                    log.warn("Failed to create session: {}", sessionResult.getError().getMessage());
+                    eventBus.publish(SyncEventBus.EventType.ERROR, null, "Failed to initialize state: " + sessionResult.getError().getMessage());
+                }
             }
 
             ThreadPoolExecutor executor = new ThreadPoolExecutor(
@@ -103,10 +111,13 @@ public class SyncService {
             }
 
             if (settings.useValkey()) {
-                stateRepository.updateSessionStatus(settings.sessionId(), "COMPLETED");
+                ValkeyResult<Void> statusResult = stateRepository.updateSessionStatus(settings.sessionId(), "COMPLETED");
+                if (statusResult.isFailure()) {
+                    log.warn("Failed to update session status: {}", statusResult.getError().getMessage());
+                }
             }
-            eventBus.publish(SyncEventBus.EventType.COMPLETE, null, 
-                String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d", 
+            eventBus.publish(SyncEventBus.EventType.COMPLETE, null,
+                String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d",
                 stats.getCopied(), stats.getSkipped(), stats.getErrors()));
         } catch (Exception e) {
             log.error("Error during synchronization: {}", e.getMessage());
@@ -122,24 +133,43 @@ public class SyncService {
             stats.incrementFound();
             
             String relativePath = settings.source().relativize(file.path()).toString();
-            if (settings.useValkey() && stateRepository.isProcessed(settings.sessionId(), relativePath)) {
-                log.debug("Skipping already synced file: {}", file.fileName());
-                stats.incrementSkipped();
-                if (settings.useValkey()) {
-                    stateRepository.incrementStat(settings.sessionId(), "skipped");
+            if (settings.useValkey()) {
+                ValkeyResult<Boolean> processedResult = stateRepository.isProcessed(settings.sessionId(), relativePath);
+                if (processedResult.isFailure()) {
+                    log.warn("Valkey error checking processed status: {}", processedResult.getError().getMessage());
+                } else if (Boolean.TRUE.equals(processedResult.getValue())) {
+                    log.debug("Skipping already synced file: {}", file.fileName());
+                    stats.incrementSkipped();
+                    if (settings.useValkey()) {
+                        ValkeyResult<Void> statResult = stateRepository.incrementStat(settings.sessionId(), "skipped");
+                        if (statResult.isFailure()) {
+                            log.warn("Failed to increment stat: {}", statResult.getError().getMessage());
+                        }
+                    }
+                    return;
                 }
-                return;
             }
 
             String fileHash = hashingService.calculateHash(file.path());
-            if (settings.useValkey() && stateRepository.isDuplicate(settings.sessionId(), fileHash)) {
-                log.debug("Skipping duplicate file: {}", file.fileName());
-                stats.incrementSkipped();
-                if (settings.useValkey()) {
-                    stateRepository.incrementStat(settings.sessionId(), "skipped");
-                    stateRepository.markAsSkipped(settings.sessionId(), relativePath, "Duplicate");
+            if (settings.useValkey()) {
+                ValkeyResult<Boolean> duplicateResult = stateRepository.isDuplicate(settings.sessionId(), fileHash);
+                if (duplicateResult.isFailure()) {
+                    log.warn("Valkey error checking duplicate: {}", duplicateResult.getError().getMessage());
+                } else if (Boolean.TRUE.equals(duplicateResult.getValue())) {
+                    log.debug("Skipping duplicate file: {}", file.fileName());
+                    stats.incrementSkipped();
+                    if (settings.useValkey()) {
+                        ValkeyResult<Void> statResult = stateRepository.incrementStat(settings.sessionId(), "skipped");
+                        if (statResult.isFailure()) {
+                            log.warn("Failed to increment stat: {}", statResult.getError().getMessage());
+                        }
+                        ValkeyResult<Void> skipResult = stateRepository.markAsSkipped(settings.sessionId(), relativePath, "Duplicate");
+                        if (skipResult.isFailure()) {
+                            log.warn("Failed to mark as skipped: {}", skipResult.getError().getMessage());
+                        }
+                    }
+                    return;
                 }
-                return;
             }
 
             LocalDateTime dateTime = resolveDate(file);
@@ -155,8 +185,14 @@ public class SyncService {
                     log.debug("Skipping undated file: {}", file.fileName());
                     stats.incrementSkipped();
                     if (settings.useValkey()) {
-                        stateRepository.incrementStat(settings.sessionId(), "skipped");
-                        stateRepository.markAsSkipped(settings.sessionId(), relativePath, "Undated");
+                        ValkeyResult<Void> statResult = stateRepository.incrementStat(settings.sessionId(), "skipped");
+                        if (statResult.isFailure()) {
+                            log.warn("Failed to increment stat: {}", statResult.getError().getMessage());
+                        }
+                        ValkeyResult<Void> skipResult = stateRepository.markAsSkipped(settings.sessionId(), relativePath, "Undated");
+                        if (skipResult.isFailure()) {
+                            log.warn("Failed to mark as skipped: {}", skipResult.getError().getMessage());
+                        }
                     }
                     return;
                 }
@@ -174,22 +210,37 @@ public class SyncService {
                     }
                     stats.incrementCopied();
                     if (settings.useValkey()) {
-                        stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
-                        stateRepository.updateLastProcessedFile(settings.sessionId(), relativePath);
-                        stateRepository.incrementStat(settings.sessionId(), "copied");
+                        ValkeyResult<Void> processedResult = stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                        if (processedResult.isFailure()) {
+                            log.warn("Failed to mark as processed: {}", processedResult.getError().getMessage());
+                        }
+                        ValkeyResult<Void> lastFileResult = stateRepository.updateLastProcessedFile(settings.sessionId(), relativePath);
+                        if (lastFileResult.isFailure()) {
+                            log.warn("Failed to update last file: {}", lastFileResult.getError().getMessage());
+                        }
+                        ValkeyResult<Void> statResult = stateRepository.incrementStat(settings.sessionId(), "copied");
+                        if (statResult.isFailure()) {
+                            log.warn("Failed to increment stat: {}", statResult.getError().getMessage());
+                        }
                     }
                     eventBus.publishLog("Copied: " + file.fileName());
                 } else if (result == CopyResult.SKIPPED) {
 
                     stats.incrementSkipped();
                     if (settings.useValkey()) {
-                        stateRepository.incrementStat(settings.sessionId(), "skipped");
+                        ValkeyResult<Void> statResult = stateRepository.incrementStat(settings.sessionId(), "skipped");
+                        if (statResult.isFailure()) {
+                            log.warn("Failed to increment stat: {}", statResult.getError().getMessage());
+                        }
                     }
                     eventBus.publishLog("Skipped: " + file.fileName());
                 } else {
                     stats.incrementErrors();
                     if (settings.useValkey()) {
-                        stateRepository.incrementStat(settings.sessionId(), "errors");
+                        ValkeyResult<Void> statResult = stateRepository.incrementStat(settings.sessionId(), "errors");
+                        if (statResult.isFailure()) {
+                            log.warn("Failed to increment stat: {}", statResult.getError().getMessage());
+                        }
                     }
                     eventBus.publishLog("Error: " + file.fileName());
                 }
@@ -203,7 +254,10 @@ public class SyncService {
             
             String relativePath = settings.source().relativize(file.path()).toString();
             if (settings.useValkey()) {
-                stateRepository.markAsError(settings.sessionId(), relativePath, e.getMessage());
+                ValkeyResult<Void> errorResult = stateRepository.markAsError(settings.sessionId(), relativePath, e.getMessage());
+                if (errorResult.isFailure()) {
+                    log.warn("Failed to mark error in Valkey: {}", errorResult.getError().getMessage());
+                }
             }
         }
     }

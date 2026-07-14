@@ -52,6 +52,13 @@ class SyncServiceTest {
         // Mock scanner to return empty for basic flow
         when(scanner.scan(any())).thenReturn(java.util.stream.Stream.empty());
         
+        // Mock Valkey operations to return success
+        when(stateService.createSession(anyString(), anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.updateSessionStatus(anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.isProcessed(anyString(), anyString())).thenReturn(ValkeyResult.success(false));
+        when(stateService.isDuplicate(anyString(), anyString())).thenReturn(ValkeyResult.success(false));
+        when(stateService.incrementStat(anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        
         SyncStatistics stats = service.synchronize(settings);
         assertNotNull(stats);
         verify(stateService).createSession(eq("test-session"), anyString(), anyString());

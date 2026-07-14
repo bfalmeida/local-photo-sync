@@ -34,13 +34,13 @@ public class HealthMonitorService {
         
         // Check Valkey
         HealthStatus valkeyStatus = checkValkey();
-        eventBus.publish(SyncEventBus.EventType.LOG, valkeyStatus, 
+        eventBus.publish(SyncEventBus.EventType.LOG, valkeyStatus,
             valkeyStatus.healthy() ? "Health: Valkey OK" : "Health: Valkey ERROR - " + valkeyStatus.message());
 
         // Check Disk (using a generic root path as a proxy for system health, 
         // since we don't have the specific destination path yet in the service layer)
         HealthStatus diskStatus = checkDiskSpace(Path.of("/"));
-        eventBus.publish(SyncEventBus.EventType.LOG, diskStatus, 
+        eventBus.publish(SyncEventBus.EventType.LOG, diskStatus,
             diskStatus.healthy() ? "Health: Disk OK" : "Health: Disk Warning - " + diskStatus.message());
     }
 
@@ -50,11 +50,17 @@ public class HealthMonitorService {
     public HealthStatus checkValkey() {
         long start = System.currentTimeMillis();
         try {
-            if (stateRepository.ping()) {
+            ValkeyResult<Boolean> pingResult = stateRepository.ping();
+            
+            if (pingResult.isSuccess() && Boolean.TRUE.equals(pingResult.getValue())) {
                 long latency = System.currentTimeMillis() - start;
                 return new HealthStatus(true, "Valkey Connected", latency);
             } else {
-                return new HealthStatus(false, "Valkey responded with failure", -1);
+                String message = pingResult.isFailure() 
+                    ? "Valkey " + pingResult.getError().getCode() + ": " + pingResult.getError().getMessage()
+                    : "Valkey responded with failure";
+                log.error("Valkey health check failed: {}", message);
+                return new HealthStatus(false, message, -1);
             }
         } catch (Exception e) {
             log.error("Valkey health check failed: {}", e.getMessage());

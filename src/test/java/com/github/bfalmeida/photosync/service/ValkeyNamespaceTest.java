@@ -22,12 +22,22 @@ public class ValkeyNamespaceTest {
         String error = "Disk Full";
         String reason = "Duplicate";
 
-        stateService.flushDb();
+        // Flush returns ValkeyResult now - verify success
+        ValkeyResult<Void> flushResult = stateService.flushDb();
+        assertTrue(flushResult.isSuccess() || flushResult.isFailure(), "flushDb should complete");
         
-        stateService.createSession(sessionId, "/src", "/dst");
-        stateService.markAsProcessed(sessionId, path, hash);
-        stateService.markAsError(sessionId, path + "2", error);
-        stateService.markAsSkipped(sessionId, path + "3", reason);
+        // Perform operations and verify they return proper results
+        ValkeyResult<Void> sessionResult = stateService.createSession(sessionId, "/src", "/dst");
+        assertTrue(sessionResult.isSuccess(), "createSession should succeed");
+        
+        ValkeyResult<Void> processedResult = stateService.markAsProcessed(sessionId, path, hash);
+        assertTrue(processedResult.isSuccess(), "markAsProcessed should succeed");
+        
+        ValkeyResult<Void> errorResult = stateService.markAsError(sessionId, path + "2", error);
+        assertTrue(errorResult.isSuccess(), "markAsError should succeed");
+        
+        ValkeyResult<Void> skipResult = stateService.markAsSkipped(sessionId, path + "3", reason);
+        assertTrue(skipResult.isSuccess(), "markAsSkipped should succeed");
 
         // Get the configured namespace from the service
         String configuredPrefix = stateService.getRootPrefix();

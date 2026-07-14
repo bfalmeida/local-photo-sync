@@ -10,33 +10,39 @@ public interface SyncStateRepository {
 
     /**
      * Initializes a new synchronization session.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void createSession(String sessionId, String sourcePath, String destinationPath);
+    ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath);
 
     /**
      * Checks if a specific file has already been processed in this session.
+     * @return ValkeyResult with boolean indicating processed status
      */
-    boolean isProcessed(String sessionId, String relativePath);
+    ValkeyResult<Boolean> isProcessed(String sessionId, String relativePath);
 
     /**
      * Marks a file as processed to avoid duplicates.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void markAsProcessed(String sessionId, String relativePath, String fileHash);
+    ValkeyResult<Void> markAsProcessed(String sessionId, String relativePath, String fileHash);
 
     /**
      * Records a synchronization error for a specific file.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void markAsError(String sessionId, String relativePath, String errorMessage);
+    ValkeyResult<Void> markAsError(String sessionId, String relativePath, String errorMessage);
 
     /**
      * Marks a file as skipped and records the reason.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void markAsSkipped(String sessionId, String relativePath, String reason);
+    ValkeyResult<Void> markAsSkipped(String sessionId, String relativePath, String reason);
 
     /**
      * Verifies connectivity to the persistence layer.
+     * @return ValkeyResult with boolean indicating connection status
      */
-    boolean ping();
+    ValkeyResult<Boolean> ping();
 
     /**
      * Returns the connection information for the persistence layer.
@@ -45,26 +51,31 @@ public interface SyncStateRepository {
 
     /**
      * Checks if a file hash already exists globally across all sessions.
+     * @return ValkeyResult with boolean indicating duplicate status
      */
-    boolean isDuplicate(String sessionId, String fileHash);
+    ValkeyResult<Boolean> isDuplicate(String sessionId, String fileHash);
 
     /**
      * Updates the progress pointer for the current session.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void updateLastProcessedFile(String sessionId, String relativePath);
+    ValkeyResult<Void> updateLastProcessedFile(String sessionId, String relativePath);
 
     /**
      * Updates the overall session status (e.g., STARTED, COMPLETED, ERROR).
+     * @return ValkeyResult with success status and error code on failure
      */
-    void updateSessionStatus(String sessionId, String status);
+    ValkeyResult<Void> updateSessionStatus(String sessionId, String status);
 
     /**
      * Increments a specific session statistic.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void incrementStat(String sessionId, String statName);
+    ValkeyResult<Void> incrementStat(String sessionId, String statName);
 
     /**
      * Wipes all state data. Use with extreme caution.
+     * @return ValkeyResult with success status and error code on failure
      */
-    void flushDb();
+    ValkeyResult<Void> flushDb();
 }
