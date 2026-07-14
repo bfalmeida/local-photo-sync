@@ -27,7 +27,7 @@ class HealthMonitorIntegrationTest {
 
     @Test
     void testCheckValkeyHealthy() {
-        when(stateRepository.ping()).thenReturn(true);
+        when(stateRepository.ping()).thenReturn(ValkeyResult.success(true));
         HealthStatus status = healthMonitorService.checkValkey();
         assertTrue(status.healthy());
         assertEquals("Valkey Connected", status.message());
@@ -35,18 +35,18 @@ class HealthMonitorIntegrationTest {
 
     @Test
     void testCheckValkeyUnhealthy() {
-        when(stateRepository.ping()).thenReturn(false);
+        when(stateRepository.ping()).thenReturn(ValkeyResult.success(false));
         HealthStatus status = healthMonitorService.checkValkey();
         assertFalse(status.healthy());
         assertTrue(status.message().contains("responded with failure"));
     }
 
     @Test
-    void testCheckValkeyException() {
-        when(stateRepository.ping()).thenThrow(new RuntimeException("Network timeout"));
+    void testCheckValkeyFailedResult() {
+        when(stateRepository.ping()).thenReturn(ValkeyResult.failure(ValkeyError.CONNECTION_FAILED));
         HealthStatus status = healthMonitorService.checkValkey();
         assertFalse(status.healthy());
-        assertTrue(status.message().contains("Valkey Offline"));
+        assertTrue(status.message().contains("CONNECTION_FAILED"));
     }
 
     @Test

@@ -50,13 +50,13 @@ class SyncServiceIntegrityTest {
         String hash = "some-sha256-hash";
         String path = "photos/image.jpg";
 
-        when(valkeyStateService.isDuplicate(sessionId, hash)).thenReturn(false);
-        assertFalse(valkeyStateService.isDuplicate(sessionId, hash), "Should not be duplicate initially");
+        when(valkeyStateService.isDuplicate(sessionId, hash)).thenReturn(ValkeyResult.success(false));
+        assertFalse(valkeyStateService.isDuplicate(sessionId, hash).getValue(), "Should not be duplicate initially");
         
-        doNothing().when(valkeyStateService).markAsProcessed(sessionId, path, hash);
+        when(valkeyStateService.markAsProcessed(sessionId, path, hash)).thenReturn(ValkeyResult.success(null));
         valkeyStateService.markAsProcessed(sessionId, path, hash);
         
-        when(valkeyStateService.isDuplicate(sessionId, hash)).thenReturn(true);
-        assertTrue(valkeyStateService.isDuplicate(sessionId, hash), "Should be detected as duplicate after being marked as processed");
+        when(valkeyStateService.isDuplicate(sessionId, hash)).thenReturn(ValkeyResult.success(true));
+        assertTrue(valkeyStateService.isDuplicate(sessionId, hash).getValue(), "Should be detected as duplicate after being marked as processed");
     }
 }
