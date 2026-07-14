@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -103,45 +104,59 @@ public class ExifMetadataService {
     }
 
     private void writeExifDate(MediaFile mediaFile, LocalDateTime date) {
-        if (!isImage(mediaFile)) return; 
-        
+        if (!isImage(mediaFile)) return;
+
+        File file = mediaFile.path().toFile();
+        Path sourcePath = file.toPath();
+        Path tempPath = null;
+
         try {
-            File file = mediaFile.path().toFile();
-            File tempFile = File.createTempFile("exif_update_", ".jpg");
-            
+            // Create temp file in parent directory for atomic move on same filesystem
+            tempPath = Files.createTempFile(sourcePath.getParent(), "exif_update_", ".jpg");
+
             TiffOutputSet outputSet = null;
-            try {
-                final ImageMetadata metadata = Imaging.getMetadata(file);
-                if (metadata instanceof JpegImageMetadata jpegMetadata) {
-                    TiffImageMetadata tiffMetadata = jpegMetadata.getExif();
-                    if (tiffMetadata != null) {
-                        outputSet = tiffMetadata.getOutputSet();
-                    }
-                }
-                
-                if (outputSet == null) {
-                    outputSet = new TiffOutputSet();
-                }
-                
-                TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
-                
-                // EXIF date format: "yyyy:MM:dd HH:mm:ss"
-                String dateString = date.format(DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss"));
-                exifDirectory.removeField(TiffTagConstants.TIFF_TAG_DATE_TIME);
-                exifDirectory.add(TiffTagConstants.TIFF_TAG_DATE_TIME, dateString);
-                
-                try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                    new ExifRewriter().updateExifMetadataLossless(file, fos, outputSet);
-                }
-                
-                Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                log.info("Successfully wrote EXIF date {} to {}", dateString, file.getName());
-            } finally {
-                if (tempFile.exists()) {
-                    tempFile.delete();
+            final ImageMetadata metadata = Imaging.getMetadata(file);
+            if (metadata instanceof JpegImageMetadata jpegMetadata) {
+                TiffImageMetadata tiffMetadata = jpegMetadata.getExif();
+                if (tiffMetadata != null) {
+                    outputSet = tiffMetadata.getOutputSet();
                 }
             }
+
+            if (outputSet == null) {
+                outputSet = new TiffOutputSet();
+            }
+
+            TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
+
+            // EXIF date format: "yyyy:MM:dd HH:mm:ss"
+            String dateString = date.format(DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss"));
+            exifDirectory.removeField(TiffTagConstants.TIFF_TAG_DATE_TIME);
+            exifDirectory.add(TiffTagConstants.TIFF_TAG_DATE_TIME, dateString);
+
+            // Write to temp file first
+            try (FileOutputStream fos = new FileOutputStream(tempPath.toFile())) {
+                new ExifRewriter().updateExifMetadataLossless(file, fos, outputSet);
+            }
+
+            // Verify temp file was written successfully
+            if (!tempPath.toFile().exists() || tempPath.toFile().length() == 0) {
+                throw new IOException("Failed to write EXIF data to temp file");
+            }
+
+            // Atomic move: temp file replaces original
+            Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            log.info("Successfully wrote EXIF date {} to {}", dateString, file.getName());
+
         } catch (Exception e) {
+            // Rollback: delete temp file on any failure
+            if (tempPath != null) {
+                try {
+                    Files.deleteIfExists(tempPath);
+                } catch (IOException cleanupError) {
+                    log.warn("Failed to clean up temp file {}: {}", tempPath, cleanupError.getMessage());
+                }
+            }
             log.error("Failed to write EXIF date for {}: {}", mediaFile.fileName(), e.getMessage());
         }
     }
