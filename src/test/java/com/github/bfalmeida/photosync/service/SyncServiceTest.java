@@ -50,7 +50,7 @@ class SyncServiceTest {
         SyncSettings settings = new SyncSettings(source, dest, true, "undated", false, false, "test-session", true, false);
         
         // Mock scanner to return empty for basic flow
-        when(scanner.scan(any())).thenReturn(java.util.stream.Stream.empty());
+        when(scanner.scanToList(any())).thenReturn(java.util.List.of());
         
         // Mock Valkey operations to return success
         when(stateService.createSession(anyString(), anyString(), anyString())).thenReturn(ValkeyResult.success(null));
