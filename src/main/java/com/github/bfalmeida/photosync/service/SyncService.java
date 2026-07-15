@@ -144,6 +144,13 @@ public class SyncService {
 
     private void processFile(MediaFile file, SyncSettings settings, SyncStatistics stats) {
         try {
+            // Defensive check: file may have been deleted/moved during scan
+            if (!Files.exists(file.path())) {
+                log.debug("Skipping vanished file: {}", file.fileName());
+                stats.incrementSkipped();
+                return;
+            }
+            
             stats.incrementFound();
             
             String relativePath = settings.source().relativize(file.path()).toString();
