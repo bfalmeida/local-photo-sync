@@ -38,12 +38,15 @@ public class MediaFileScanner {
                 .filter(Files::isRegularFile)
                 .filter(path -> !path.getFileName().toString().startsWith("."))
                 .filter(path -> {
-                    String fileName = path.getFileName().toString().toLowerCase();
-                    int lastDot = fileName.lastIndexOf('.');
-                    if (lastDot == -1) {
+                    // Extract filename safely - handle null/empty cases
+                    String fileName = path.getFileName() != null ? path.getFileName().toString() : "";
+                    if (fileName.isEmpty()) {
                         return false;
                     }
-                    String extension = fileName.substring(lastDot + 1);
+                    String extension = getExtension(fileName);
+                    if (extension == null) {
+                        return false;
+                    }
                     // Skip unsupported file types early to prevent NoSuchFileException during size check
                     if (UNSUPPORTED_EXTENSIONS.contains(extension)) {
                         return false;
@@ -53,8 +56,10 @@ public class MediaFileScanner {
                 })
                 .filter(path -> {
                     try {
-                        return Files.size(path) > 0;
+                        // Defensive: file may have vanished between filters
+                        return Files.exists(path) && Files.size(path) > 0;
                     } catch (IOException e) {
+                        // File disappeared during scan - skip it
                         return false;
                     }
                 })
@@ -75,7 +80,10 @@ public class MediaFileScanner {
     }
 
     private MediaFile toMediaFile(Path path) {
-        String fileName = path.getFileName().toString();
+        if (path == null) {
+            return null;
+        }
+        String fileName = path.getFileName() != null ? path.getFileName().toString() : "";
         String extension = getExtension(fileName);
 
         if (extension == null) {
@@ -90,12 +98,29 @@ public class MediaFileScanner {
         return new MediaFile(path, fileName, mediaType, null);
     }
 
+    /**
+     * Extracts file extension safely, handling Unicode and special characters.
+     * Returns null if no valid extension is found.
+     */
     private String getExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return null;
+        }
         int lastDot = fileName.lastIndexOf('.');
         if (lastDot == -1 || lastDot == fileName.length() - 1) {
             return null;
         }
-        return fileName.substring(lastDot + 1).toLowerCase();
+        try {
+            String extension = fileName.substring(lastDot + 1).toLowerCase();
+            // Handle potential Unicode/special characters that may result in empty or whitespace-only extension
+            if (extension == null || extension.trim().isEmpty()) {
+                return null;
+            }
+            return extension;
+        } catch (StringIndexOutOfBoundsException e) {
+            // Defensive catch for malformed filenames
+            return null;
+        }
     }
 
     private MediaType getMediaType(String extension) {
