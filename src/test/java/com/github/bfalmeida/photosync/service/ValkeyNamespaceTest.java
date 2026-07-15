@@ -1,5 +1,6 @@
 package com.github.bfalmeida.photosync.service;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +17,10 @@ public class ValkeyNamespaceTest {
 
     @Test
     public void testNamespaceCorrectness() {
+        // Skip test if Redis is not available
+        ValkeyResult<Boolean> pingResult = stateService.ping();
+        Assumptions.assumeTrue(pingResult.isSuccess(), "Redis must be available for this integration test");
+        
         String sessionId = "test-session-123";
         String path = "test/photo.jpg";
         String hash = "hash123";
