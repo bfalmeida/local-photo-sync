@@ -57,7 +57,7 @@ public class SyncService {
 
     public SyncStatistics synchronize(SyncSettings settings) {
         SyncStatistics stats = new SyncStatistics();
-        
+
         try {
             if (settings.clearState() && settings.useValkey()) {
                 log.info("Clearing sync state as requested.");
@@ -99,7 +99,7 @@ public class SyncService {
                 for (MediaFile file : mediaFiles) {
                     futures.add(executor.submit(() -> {
                         processFile(file, settings, stats);
-                        
+
                         int current = processedCount.incrementAndGet();
                         int percent = (int) ((current * 100L) / totalFiles);
                         eventBus.publishProgress(percent, stats.getCopied(), stats.getSkipped(), stats.getErrors());
@@ -138,21 +138,22 @@ public class SyncService {
             stats.incrementErrors();
             eventBus.publish(SyncEventBus.EventType.ERROR, null, "Critical error: " + e.getMessage());
         }
-        
+
         return stats;
     }
 
     private void processFile(MediaFile file, SyncSettings settings, SyncStatistics stats) {
         try {
-            // Defensive check: file may have been deleted/moved during scan
-            if (!Files.exists(file.path())) {
-                log.debug("Skipping vanished file: {}", file.fileName());
+            // Defensive check: file may have been deleted/moved after scanning (race condition)
+            String fileName = file != null ? file.fileName() : "unknown";
+            if (file == null || file.path() == null || !Files.exists(file.path())) {
+                log.warn("Skipping file that no longer exists: {}", fileName);
                 stats.incrementSkipped();
                 return;
             }
-            
+
             stats.incrementFound();
-            
+
             String relativePath = settings.source().relativize(file.path()).toString();
             if (settings.useValkey()) {
                 ValkeyResult<Boolean> processedResult = stateRepository.isProcessed(settings.sessionId(), relativePath);
@@ -195,7 +196,7 @@ public class SyncService {
 
             LocalDateTime dateTime = resolveDate(file);
             boolean isWhatsApp = false;
-            
+
             Optional<FilenameDateExtractor.DateInfo> filenameDateOpt = filenameDateExtractor.extract(file.fileName());
             if (filenameDateOpt.isPresent()) {
                 isWhatsApp = filenameDateOpt.get().whatsApp();
@@ -220,11 +221,11 @@ public class SyncService {
             }
 
             Path destinationPath = determineDestinationPath(file, dateTime, settings.destination(), settings.undatedFolder());
-            
+
             if (settings.execute()) {
                 MediaFile fileWithDate = new MediaFile(file.path(), file.fileName(), file.mediaType(), dateTime, isWhatsApp);
                 CopyResult result = fileCopyService.copy(fileWithDate, settings.destination(), settings.undatedFolder(), fileHash);
-                
+
                 if (result == CopyResult.SUCCESS) {
                     if (settings.modifySource()) {
                         exifMetadataService.harmonizeDate(file);
@@ -272,13 +273,19 @@ public class SyncService {
             stats.incrementErrors();
             log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
             eventBus.publishLog("FAILED: " + file.fileName() + " - " + e.getMessage());
-            
-            String relativePath = settings.source().relativize(file.path()).toString();
-            if (settings.useValkey()) {
-                ValkeyResult<Void> errorResult = stateRepository.markAsError(settings.sessionId(), relativePath, e.getMessage());
-                if (errorResult.isFailure()) {
-                    log.warn("Failed to mark error in Valkey: {}", errorResult.getError().getMessage());
+
+            // Defensive: handle null file or null path in error handler
+            String fileName = file != null ? file.fileName() : "unknown";
+            try {
+                String relativePath = settings.source().relativize(file != null && file.path() != null ? file.path() : Path.of("unknown")).toString();
+                if (settings.useValkey()) {
+                    ValkeyResult<Void> errorResult = stateRepository.markAsError(settings.sessionId(), relativePath, e.getMessage());
+                    if (errorResult.isFailure()) {
+                        log.warn("Failed to mark error in Valkey: {}", errorResult.getError().getMessage());
+                    }
                 }
+            } catch (Exception relEx) {
+                log.warn("Could not compute relative path for error reporting: {}", relEx.getMessage());
             }
         }
     }
@@ -286,22 +293,22 @@ public class SyncService {
     private Path determineDestinationPath(MediaFile file, LocalDateTime dateTime, Path destinationRoot, String undatedFolder) {
         String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
         String typeFolder = file.mediaType() == MediaType.PHOTO ? "Photos" : "Videos";
-        
+
         if (dateTime == null) {
             return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(file.fileName());
         }
-        
+
         int year = dateTime.getYear();
         int month = dateTime.getMonthValue();
-        
+
         Path path = destinationRoot.resolve(String.valueOf(year))
                                   .resolve(String.format("%02d", month))
                                   .resolve(typeFolder);
-        
+
         if (file.whatsApp()) {
             path = path.resolve("WhatsApp");
         }
-        
+
         return path.resolve(file.fileName());
     }
 

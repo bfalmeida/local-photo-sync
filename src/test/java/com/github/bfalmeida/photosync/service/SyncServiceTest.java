@@ -1,7 +1,9 @@
 package com.github.bfalmeida.photosync.service;
 
+import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
+import com.github.bfalmeida.photosync.model.MediaType;
 import com.github.bfalmeida.photosync.ui.SyncEventBus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -62,5 +66,62 @@ class SyncServiceTest {
         SyncStatistics stats = service.synchronize(settings);
         assertNotNull(stats);
         verify(stateService).createSession(eq("test-session"), anyString(), anyString());
+    }
+
+    @Test
+    void testProcessFile_SkipsVanishedFile() throws Exception {
+        Path source = tempDir.resolve("source");
+        Path dest = tempDir.resolve("dest");
+        Files.createDirectories(source);
+        Files.createDirectories(dest);
+
+        // Create a file that we'll delete before processing
+        Path vanishedFile = source.resolve("photo.jpg");
+        Files.writeString(vanishedFile, "content");
+        Path actualPath = vanishedFile; // Keep reference to the path
+
+        // Create a media file pointing to where the file was
+        MediaFile vanishedMediaFile = new MediaFile(actualPath, "photo.jpg", MediaType.PHOTO, null);
+
+        SyncSettings settings = new SyncSettings(source, dest, true, "undated", false, false, "test-session", true, false);
+
+        // File is deleted before processing (simulates race condition)
+        Files.delete(vanishedFile);
+
+        // Mock to return the vanished file in the list
+        when(scanner.scanToList(source)).thenReturn(Arrays.asList(vanishedMediaFile));
+        when(stateService.createSession(anyString(), anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.updateSessionStatus(anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.isProcessed(anyString(), anyString())).thenReturn(ValkeyResult.success(false));
+        when(stateService.isDuplicate(anyString(), anyString())).thenReturn(ValkeyResult.success(false));
+
+        SyncStatistics stats = service.synchronize(settings);
+
+        // Should skip the vanished file without crashing
+        assertEquals(0, stats.getCopied());
+        assertEquals(1, stats.getSkipped());
+        assertEquals(0, stats.getErrors());
+    }
+
+    @Test
+    void testProcessFile_SkipsFileWithNullMediaFile() throws Exception {
+        Path source = tempDir.resolve("source");
+        Path dest = tempDir.resolve("dest");
+        Files.createDirectories(source);
+        Files.createDirectories(dest);
+
+        SyncSettings settings = new SyncSettings(source, dest, true, "undated", false, false, "test-session", true, false);
+
+        // Return null media file to simulate edge case (use Arrays.asList to allow null elements)
+        when(scanner.scanToList(source)).thenReturn(Arrays.asList((MediaFile) null));
+        when(stateService.createSession(anyString(), anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.updateSessionStatus(anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+
+        SyncStatistics stats = service.synchronize(settings);
+
+        // Should handle null gracefully
+        assertEquals(0, stats.getCopied());
+        assertEquals(1, stats.getSkipped());
+        assertEquals(0, stats.getErrors());
     }
 }
