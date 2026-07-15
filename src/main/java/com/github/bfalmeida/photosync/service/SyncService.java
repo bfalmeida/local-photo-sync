@@ -18,6 +18,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.github.bfalmeida.photosync.model.MediaType;
@@ -87,20 +89,32 @@ public class SyncService {
             );
 
             try {
-                var mediaFiles = mediaFileScanner.scan(settings.source()).toList();
+                var mediaFiles = mediaFileScanner.scanToList(settings.source());
                 int totalFiles = mediaFiles.size();
                 AtomicInteger processedCount = new AtomicInteger(0);
+                List<Future<?>> futures = new ArrayList<>();
 
                 eventBus.publishLog("Scanning complete. Found " + totalFiles + " files.");
 
                 for (MediaFile file : mediaFiles) {
-                    executor.submit(() -> {
+                    futures.add(executor.submit(() -> {
                         processFile(file, settings, stats);
                         
                         int current = processedCount.incrementAndGet();
                         int percent = (int) ((current * 100L) / totalFiles);
                         eventBus.publishProgress(percent, stats.getCopied(), stats.getSkipped(), stats.getErrors());
-                    });
+                    }));
+                }
+
+                // Wait for all tasks to complete before shutdown - prevents race condition
+                for (Future<?> future : futures) {
+                    try {
+                        future.get(2, TimeUnit.HOURS);
+                    } catch (TimeoutException e) {
+                        log.error("Task timed out after 2 hours", e);
+                    } catch (ExecutionException e) {
+                        log.error("Task failed with exception", e.getCause());
+                    }
                 }
             } finally {
                 executor.shutdown();
