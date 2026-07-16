@@ -267,6 +267,13 @@ public class SyncService {
                     eventBus.publishLog("Error: " + file.fileName());
                 }
             } else {
+                // Dry-run mode: persist state without executing copy
+                if (settings.useValkey()) {
+                    ValkeyResult<Void> processedResult = stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                    if (processedResult.isFailure()) {
+                        log.warn("Failed to mark dry-run as processed: {}", processedResult.getError().getMessage());
+                    }
+                }
                 stats.incrementCopied();
             }
         } catch (Exception e) {

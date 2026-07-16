@@ -144,8 +144,14 @@ public class ExifMetadataService {
                 throw new IOException("Failed to write EXIF data to temp file");
             }
 
-            // Atomic move: temp file replaces original
-            Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            // Atomic move: temp file replaces original (fallback if ATOMIC_MOVE unsupported)
+            try {
+                Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicUnsupported) {
+                // Fallback for filesystems that don't support atomic moves (network mounts, some cloud storage)
+                Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING);
+                log.debug("Atomic move unsupported, using fallback move for {}", file.getName());
+            }
             log.info("Successfully wrote EXIF date {} to {}", dateString, file.getName());
 
         } catch (Exception e) {
@@ -191,12 +197,17 @@ public class ExifMetadataService {
         try {
             Metadata metadata = Mp4MetadataReader.readMetadata(file);
 
+            // Look for QuickTime creation time tag (tag ID 1 in QuickTime directory)
             for (Directory directory : metadata.getDirectories()) {
-                if (directory.containsTag(1)) {
-                    Date date = directory.getDate(1);
-                    if (date != null) {
-                        return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
-                    }
+                // Check for date in any directory that might contain it
+                Date date = directory.getDate(1);
+                if (date != null) {
+                    return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
+                }
+                // Also check for other date-related tags
+                date = directory.getDate(3); // Modification time
+                if (date != null && directory.getName().contains("QuickTime")) {
+                    return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
                 }
             }
 
