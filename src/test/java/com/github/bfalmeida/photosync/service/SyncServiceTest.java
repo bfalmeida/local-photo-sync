@@ -12,9 +12,11 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class SyncServiceTest {
@@ -123,5 +125,41 @@ class SyncServiceTest {
         assertEquals(0, stats.getCopied());
         assertEquals(1, stats.getSkipped());
         assertEquals(0, stats.getErrors());
+    }
+
+    @Test
+    void testDryRunPersistsState() throws Exception {
+        Path source = tempDir.resolve("source");
+        Path dest = tempDir.resolve("dest");
+        Files.createDirectories(source);
+        Files.createDirectories(dest);
+
+        // Create a real file for testing
+        Path imagePath = source.resolve("IMG_20230101_120000.jpg");
+        Files.writeString(imagePath, "test content");
+
+        MediaFile testFile = new MediaFile(imagePath, "IMG_20230101_120000.jpg", MediaType.PHOTO, null, false);
+
+        String fileHash = "hash-test-dryrun";
+
+        // Execute in dry-run mode (execute=false)
+        SyncSettings settings = new SyncSettings(source, dest, false, "undated", false, false, "dry-run-test", true, false);
+
+        when(scanner.scanToList(source)).thenReturn(Arrays.asList(testFile));
+        when(stateService.createSession(anyString(), anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.updateSessionStatus(anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(stateService.isProcessed(anyString(), anyString())).thenReturn(ValkeyResult.success(false));
+        when(stateService.isDuplicate(anyString(), anyString())).thenReturn(ValkeyResult.success(false));
+        when(stateService.markAsProcessed(anyString(), anyString(), anyString())).thenReturn(ValkeyResult.success(null));
+        when(hashing.calculateHash(any())).thenReturn(fileHash);
+        when(extractor.extract(anyString())).thenReturn(Optional.of(new FilenameDateExtractor.DateInfo(2023, 1, false)));
+
+        SyncStatistics stats = service.synchronize(settings);
+
+        // Dry-run should increment copied count
+        assertEquals(1, stats.getCopied(), "Dry-run should count file as copied");
+
+        // Verify state persistence was called even in dry-run mode
+        verify(stateService).markAsProcessed(eq("dry-run-test"), anyString(), eq(fileHash));
     }
 }

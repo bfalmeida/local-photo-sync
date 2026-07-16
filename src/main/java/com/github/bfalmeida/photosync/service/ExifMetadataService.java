@@ -7,6 +7,7 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.drew.metadata.mp4.media.Mp4MediaDirectory;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.MediaType;
 import org.apache.commons.imaging.Imaging;
@@ -147,12 +148,24 @@ public class ExifMetadataService {
             // Atomic move: temp file replaces original (fallback if ATOMIC_MOVE unsupported)
             try {
                 Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                log.info("Successfully wrote EXIF date {} to {}", dateString, file.getName());
             } catch (IOException atomicUnsupported) {
                 // Fallback for filesystems that don't support atomic moves (network mounts, some cloud storage)
-                Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING);
-                log.debug("Atomic move unsupported, using fallback move for {}", file.getName());
+                try {
+                    Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING);
+                    log.info("Successfully wrote EXIF date {} to {} (non-atomic fallback)", dateString, file.getName());
+                } catch (IOException fallbackError) {
+                    // Clean up temp file on fallback failure
+                    if (tempPath != null) {
+                        try {
+                            Files.deleteIfExists(tempPath);
+                        } catch (IOException cleanupError) {
+                            log.warn("Failed to clean up temp file {}: {}", tempPath, cleanupError.getMessage());
+                        }
+                    }
+                    log.error("Failed to write EXIF date for {}: {}", mediaFile.fileName(), fallbackError.getMessage());
+                }
             }
-            log.info("Successfully wrote EXIF date {} to {}", dateString, file.getName());
 
         } catch (Exception e) {
             // Rollback: delete temp file on any failure
@@ -197,17 +210,13 @@ public class ExifMetadataService {
         try {
             Metadata metadata = Mp4MetadataReader.readMetadata(file);
 
-            // Look for QuickTime creation time tag (tag ID 1 in QuickTime directory)
             for (Directory directory : metadata.getDirectories()) {
-                // Check for date in any directory that might contain it
-                Date date = directory.getDate(1);
-                if (date != null) {
-                    return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
-                }
-                // Also check for other date-related tags
-                date = directory.getDate(3); // Modification time
-                if (date != null && directory.getName().contains("QuickTime")) {
-                    return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
+                // Check MP4 media directory for creation time tag
+                if (directory instanceof Mp4MediaDirectory) {
+                    Date date = directory.getDate(Mp4MediaDirectory.TAG_CREATION_TIME);
+                    if (date != null) {
+                        return Optional.of(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
+                    }
                 }
             }
 
