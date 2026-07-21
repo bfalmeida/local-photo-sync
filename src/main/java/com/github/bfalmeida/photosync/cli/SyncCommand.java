@@ -126,7 +126,8 @@ public class SyncCommand {
                 clearState, 
                 sessionId,
                 useValkey,
-                false
+                false,
+                false // resumeSession - default false, requires explicit flag
             );
             
             SyncStatistics stats = syncService.synchronize(settings);

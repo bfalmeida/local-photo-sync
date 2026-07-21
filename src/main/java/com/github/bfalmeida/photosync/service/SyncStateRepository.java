@@ -15,6 +15,13 @@ public interface SyncStateRepository {
     ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath);
 
     /**
+     * Creates or resumes a session.
+     * @param append If true, resume existing session without overwriting
+     * @return ValkeyResult with success status and error code on failure
+     */
+    ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath, boolean append);
+
+    /**
      * Checks if a specific file has already been processed in this session.
      * @return ValkeyResult with boolean indicating processed status
      */
@@ -25,6 +32,15 @@ public interface SyncStateRepository {
      * @return ValkeyResult with success status and error code on failure
      */
     ValkeyResult<Void> markAsProcessed(String sessionId, String relativePath, String fileHash);
+
+    /**
+     * Enhanced markAsProcessed with full file metadata.
+     * Stores: destinationPath, fileSize, createdDateTime, movedDateTime, modifiedAfterTransfer
+     * @return ValkeyResult with success status and error code on failure
+     */
+    ValkeyResult<Void> markAsProcessedWithMetadata(String sessionId, String relativePath, 
+                                                    String fileHash, String destinationPath,
+                                                    Long fileSize, Long createdDateTime, boolean modifiedAfterTransfer);
 
     /**
      * Records a synchronization error for a specific file.

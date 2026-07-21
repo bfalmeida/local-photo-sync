@@ -76,7 +76,8 @@ public class SyncController {
             clear,
             "gui-session-" + System.currentTimeMillis(),
             false,
-            false
+            false,
+            false // resumeSession
         );
 
         SwingWorker<SyncStatistics, Void> worker = new SwingWorker<>() {
