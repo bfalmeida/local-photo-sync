@@ -210,11 +210,12 @@ Coordinate all services to execute the complete media synchronization workflow.
 ### Phase 3.5: Hardening & Refinements
 
 #### TASK-014: Improve Null Handling
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #30
+**Status**: ✅ DONE | **Priority**: MEDIUM | **Issue**: #30
+**Completion Date**: 2026-10-11
 **Description**: Improve null handling at CLI and parsing boundaries.
 **Acceptance Criteria**:
-- [ ] All parsing boundaries handle nulls gracefully
-- [ ] CLI input validation prevents null propagation
+- [x] All parsing boundaries handle nulls gracefully
+- [x] CLI input validation prevents null propagation
 **Dependencies**: TASK-004
 
 ---
@@ -428,7 +429,8 @@ TASK-008 (File Copy)      │          ↓
 | 2026-06-12 | 1.0.0 | Added Valkey Integration Phase (Phase 6) |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #123 MERGED: Security hardening (PathSanitizer), dependency modernization (jakarta.annotation-api, commons-imaging), removed dead GUI code |
 | 2026-10-11 | 1.0.0-SNAPSHOT | TRB-126 / PR #127: MediaType unification (Issue #33) — added UNKNOWN enum, WMV/edge-case support, unified path logic via MediaType (Marcus/Elena pipeline completed) |
-| 2026-10-11 | 1.0.0-SNAPSHOT | PR #128: Issue #32 — Fix destination path preview (undated folder must not override dated layout) — Marcus/Elena pipeline completed |
+| 2026-10-11 | 1.0.0-SNAPSHOT | PR #128: Issue #32 — Fix destination path preview (undated folder path fix) — Marcus/Elena pipeline completed |
+| 2026-10-11 | 1.0.0-SNAPSHOT | PR #129: Issue #30 — Improve null handling (defensive equals + parsing boundaries) — Marcus/Elena pipeline completed |
 
 ---
 

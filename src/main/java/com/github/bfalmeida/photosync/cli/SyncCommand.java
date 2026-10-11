@@ -148,13 +148,13 @@ public class SyncCommand {
         LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
         ch.qos.logback.classic.Logger rootLogger = loggerContext.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
 
-        if (logLevel != null && !logLevel.equals("null")) {
+        if (logLevel != null && !"null".equals(logLevel)) {
             rootLogger.setLevel(Level.toLevel(logLevel, Level.INFO));
         } else {
             rootLogger.setLevel(Level.INFO);
         }
 
-        if (logFile != null && !logFile.equals("null") && !logFile.isEmpty()) {
+        if (logFile != null && !"null".equals(logFile) && !logFile.isEmpty()) {
             ch.qos.logback.classic.Logger appLogger = loggerContext.getLogger("com.github.bfalmeida.photosync");
 
             FileAppender<ILoggingEvent> fileAppender = new FileAppender<>();
