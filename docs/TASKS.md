@@ -220,11 +220,12 @@ Coordinate all services to execute the complete media synchronization workflow.
 ---
 
 #### TASK-015: Unify Media Path Logic
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #33
+**Status**: ✅ DONE | **Priority**: MEDIUM | **Issue**: #33
+**Completion Date**: 2026-10-11
 **Description**: Unify Photos vs Videos path using `MediaType` (fix WMV etc.).
 **Acceptance Criteria**:
-- [ ] Use `MediaType` enum for all path determination
-- [ ] Ensure WMV and other edge-case extensions are handled
+- [x] Use `MediaType` enum for all path determination
+- [x] Ensure WMV and other edge-case extensions are handled
 **Dependencies**: TASK-008
 
 ---
@@ -425,6 +426,7 @@ TASK-008 (File Copy)      │          ↓
 | 2026-03-29 | 1.0.0 | Updated task statuses - Phase 1-3 complete |
 | 2026-06-12 | 1.0.0 | Added Valkey Integration Phase (Phase 6) |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #123 MERGED: Security hardening (PathSanitizer), dependency modernization (jakarta.annotation-api, commons-imaging), removed dead GUI code |
+| 2026-10-11 | 1.0.0-SNAPSHOT | TRB-126 / PR #126: MediaType unification (Issue #33) — added UNKNOWN enum, WMV/edge-case support, unified path logic via MediaType (Marcus/Elena pipeline completed) |
 
 ---
 
