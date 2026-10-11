@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import java.lang.reflect.Method;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MediaFileScannerTest {
@@ -134,5 +135,14 @@ class MediaFileScannerTest {
         Files.writeString(tempDir.resolve("unknown.xyz"), "unknown content");
         List<MediaFile> result = scanner.scanToList(tempDir);
         assertEquals(0, result.size(), "Unknown extensions should be filtered out");
+    }
+    
+    @Test
+    void testGetMediaType_ReturnsUnknownForUnrecognizedExtensions() throws Exception {
+        MediaFileScanner scanner = new MediaFileScanner();
+        Method method = MediaFileScanner.class.getDeclaredMethod("getMediaType", String.class);
+        method.setAccessible(true);
+        assertEquals(MediaType.UNKNOWN, method.invoke(scanner, "xyz"));
+        assertEquals(MediaType.UNKNOWN, method.invoke(scanner, "tmp"));
     }
 }

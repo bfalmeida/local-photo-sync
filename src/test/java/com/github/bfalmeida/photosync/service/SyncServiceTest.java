@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.List;
 
+import java.lang.reflect.Method;
+import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -163,5 +165,22 @@ class SyncServiceTest {
         // Verify state persistence was called even in dry-run mode
         verify(stateService).markAsProcessedWithMetadata(eq("dry-run-test"), anyString(), eq(fileHash),
                                                          anyString(), anyLong(), anyLong(), anyBoolean());
+    }
+
+    @Test
+    void testDetermineDestinationPath_ReturnsUndatedFilePathWhenDateTimeNull() throws Exception {
+        Method method = SyncService.class.getDeclaredMethod("determineDestinationPath",
+                MediaFile.class, LocalDateTime.class, Path.class, String.class);
+        method.setAccessible(true);
+
+        Path destRoot = tempDir.resolve("dest");
+        Files.createDirectories(destRoot);
+
+        MediaFile file = new MediaFile(destRoot.resolve("test.jpg"), "test.jpg", MediaType.PHOTO, null);
+        Path result = (Path) method.invoke(service, file, null, destRoot, null);
+
+        assertEquals(destRoot.resolve("undated").resolve("test.jpg"), result);
+        assertFalse(result.toString().contains("Photos"));
+        assertFalse(result.toString().contains("Videos"));
     }
 }
