@@ -350,7 +350,7 @@ public class SyncService {
         String sanitizedFilename = PathSanitizer.sanitizeFilename(file.fileName());
 
         if (dateTime == null) {
-            return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(sanitizedFilename);
+            return destinationRoot.resolve(folderName).resolve(sanitizedFilename);
         }
 
         int year = dateTime.getYear();
