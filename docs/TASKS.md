@@ -424,6 +424,7 @@ TASK-008 (File Copy)      │          ↓
 | 2026-03-22 | 1.0.0 | Initial functional task list created |
 | 2026-03-29 | 1.0.0 | Updated task statuses - Phase 1-3 complete |
 | 2026-06-12 | 1.0.0 | Added Valkey Integration Phase (Phase 6) |
+| 2026-10-11 | 1.0.0-SNAPSHOT | PR #123 MERGED: Security hardening (PathSanitizer), dependency modernization (jakarta.annotation-api, commons-imaging), removed dead GUI code |
 
 ---
 

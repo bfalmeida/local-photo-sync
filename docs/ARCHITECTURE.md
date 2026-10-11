@@ -16,10 +16,11 @@
 
 ```
 com.github.bfalmeida.photosync
-├── cli/          # Command-line interface
-├── service/     # Business logic services
-├── model/       # Domain objects
-└── util/        # Helper utilities
+├── cli/              # Command-line interface
+├── service/         # Business logic services (incl. PathSanitizer, SyncEventBus)
+├── health/          # Health monitoring services
+├── model/           # Domain objects
+├── util/            # Helper utilities
 ```
 
 ## Service Responsibilities
@@ -47,10 +48,20 @@ com.github.bfalmeida.photosync
 - Preserves original file attributes
 
 ### Sync Orchestrator
-- Coordinates all services in the correct sequence
-- Implements date resolution priority rules
-- Collects operation statistics
-- Handles errors gracefully without stopping the entire operation
+|- Coordinates all services in the correct sequence
+|- Implements date resolution priority rules
+|- Collects operation statistics
+|- Handles errors gracefully without stopping the entire operation
+
+### Path Sanitizer
+|- `PathSanitizer`: Validates and sanitizes all user-provided file paths
+|- Prevents path traversal attacks (CWE-22) via directory escape attempts
+|- Methods: `validateDirectory()`, `validateDestination()`, `sanitizeFilename()`
+
+### Sync Event Bus
+|- `SyncEventBus`: Decoupled event bus for system telemetry
+|- Allows `SyncService` and `HealthMonitorService` to publish events without coupling to listeners
+|- Event types: PROGRESS, LOG, COMPLETE, ERROR
 
 ## Data Flow
 
