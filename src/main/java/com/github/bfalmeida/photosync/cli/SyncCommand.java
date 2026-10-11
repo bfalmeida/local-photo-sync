@@ -48,7 +48,8 @@ public class SyncCommand {
             @ShellOption(help = "Reset the Valkey sync state") boolean clearState,
             @ShellOption(defaultValue = "false", help = "Enable Valkey state persistence") boolean useValkey,
             @ShellOption(defaultValue = "INFO", help = "Logging level (DEBUG, INFO, WARN, ERROR)") String logLevel,
-            @ShellOption(defaultValue = "null", help = "Log file path") String logFile
+            @ShellOption(defaultValue = "null", help = "Log file path") String logFile,
+            @ShellOption(defaultValue = "false", help = "Resume existing session instead of creating new one") boolean resumeSession
     ) {
         configureLogging(logLevel, logFile);
 
@@ -89,6 +90,11 @@ public class SyncCommand {
         log.info("  skip-undated: {}", skipUndated);
         log.info("  clear-state: {}", clearState);
         log.info("  use-valkey: {}", useValkey);
+        log.info("  resume-session: {}", resumeSession);
+
+        if (resumeSession && clearState) {
+            return "Error: Cannot use both --resume-session and --clear-state flags together.";
+        }
 
         if (source == null || source.isBlank()) {
             return "Error: Source directory is required.";
@@ -126,7 +132,8 @@ public class SyncCommand {
                 clearState, 
                 sessionId,
                 useValkey,
-                false
+                false,
+                resumeSession // use CLI flag for session resume
             );
             
             SyncStatistics stats = syncService.synchronize(settings);

@@ -75,10 +75,14 @@ public class SyncService {
 
             if (settings.useValkey()) {
                 ValkeyResult<Void> sessionResult = stateRepository.createSession(
-                    settings.sessionId(), settings.source().toString(), settings.destination().toString());
+                    settings.sessionId(), settings.source().toString(), settings.destination().toString(),
+                    settings.resumeSession());
                 if (sessionResult.isFailure()) {
                     log.warn("Failed to create session: {}", sessionResult.getError().getMessage());
                     eventBus.publish(SyncEventBus.EventType.ERROR, null, "Failed to initialize state: " + sessionResult.getError().getMessage());
+                }
+                if (settings.resumeSession()) {
+                    log.info("Resuming session: {}", settings.sessionId());
                 }
             }
 
@@ -231,8 +235,24 @@ public class SyncService {
                         exifMetadataService.harmonizeDate(file);
                     }
                     stats.incrementCopied();
+                    
+                    // Collect enhanced metadata
+                    long fileSize = 0;
+                    try {
+                        fileSize = Files.size(file.path());
+                    } catch (Exception ignored) {}
+                    
+                    Long createdDateTime = null;
+                    try {
+                        if (dateTime != null) {
+                            createdDateTime = dateTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                        }
+                    } catch (Exception ignored) {}
+                    
                     if (settings.useValkey()) {
-                        ValkeyResult<Void> processedResult = stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                        ValkeyResult<Void> processedResult = stateRepository.markAsProcessedWithMetadata(
+                            settings.sessionId(), relativePath, fileHash,
+                            destinationPath.toString(), fileSize, createdDateTime, false);
                         if (processedResult.isFailure()) {
                             log.warn("Failed to mark as processed: {}", processedResult.getError().getMessage());
                         }
@@ -268,8 +288,26 @@ public class SyncService {
                 }
             } else {
                 // Dry-run mode: persist state without executing copy
+                // Still compute destination path for metadata tracking
+                Path destPath = determineDestinationPath(file, dateTime, settings.destination(), settings.undatedFolder());
+                
+                // Collect enhanced metadata
+                long fileSize = 0;
+                try {
+                    fileSize = Files.size(file.path());
+                } catch (Exception ignored) {}
+                
+                Long createdDateTime = null;
+                try {
+                    if (dateTime != null) {
+                        createdDateTime = dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    }
+                } catch (Exception ignored) {}
+                
                 if (settings.useValkey()) {
-                    ValkeyResult<Void> processedResult = stateRepository.markAsProcessed(settings.sessionId(), relativePath, fileHash);
+                    ValkeyResult<Void> processedResult = stateRepository.markAsProcessedWithMetadata(
+                        settings.sessionId(), relativePath, fileHash,
+                        destPath.toString(), fileSize, createdDateTime, false);
                     if (processedResult.isFailure()) {
                         log.warn("Failed to mark dry-run as processed: {}", processedResult.getError().getMessage());
                     }

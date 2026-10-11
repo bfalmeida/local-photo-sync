@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import javax.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 import java.util.Map;
 
@@ -14,11 +15,11 @@ public class ValkeyStateService implements SyncStateRepository {
     // Configurable namespace - initialized via @Value, defaults to "local-photo-sync:"
     private String rootPrefix = "local-photo-sync:";
 
-    @Value("${valkey.host:127.0.0.1}")
+    @Value("${VALKEY_HOST}")
     private String host;
 
-    @Value("${valkey.port:6379}")
-    private String port;
+    @Value("${VALKEY_PORT}")
+    private int port;
 
     @Value("${valkey.namespace:local-photo-sync:}")
     private void setRootPrefix(String namespace) {
@@ -43,8 +44,25 @@ public class ValkeyStateService implements SyncStateRepository {
 
     @Override
     public ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath) {
+        return createSession(sessionId, sourcePath, destinationPath, false);
+    }
+
+    /**
+     * Creates or resumes a session.
+     * @param append If true, resume existing session without overwriting
+     */
+    public ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath, boolean append) {
         try {
             String key = rootPrefix + "session:" + sessionId;
+            
+            if (append && redisTemplate.hasKey(key)) {
+                // Resume existing session - update status to RESUMED
+                redisTemplate.opsForHash().put(key, "status", "RESUMED");
+                redisTemplate.opsForHash().put(key, "resumeTime", String.valueOf(System.currentTimeMillis()));
+                log.info("Session resumed: {}", sessionId);
+                return ValkeyResult.success(null);
+            }
+            
             Map<String, String> fields = Map.of(
                 "source", sourcePath,
                 "destination", destinationPath,
@@ -73,14 +91,49 @@ public class ValkeyStateService implements SyncStateRepository {
 
     @Override
     public ValkeyResult<Void> markAsProcessed(String sessionId, String relativePath, String fileHash) {
+        return markAsProcessedWithMetadata(sessionId, relativePath, fileHash, null, null, null, false);
+    }
+
+    @Override
+    public ValkeyResult<Void> markAsProcessedWithMetadata(String sessionId, String relativePath, 
+                                                            String fileHash, String destinationPath,
+                                                            Long fileSize, Long createdDateTime, boolean modifiedAfterTransfer) {
+        return markAsProcessed(sessionId, relativePath, fileHash, destinationPath, fileSize, createdDateTime, modifiedAfterTransfer);
+    }
+
+    /**
+     * Enhanced markAsProcessed with full file metadata.
+     * Stores: destinationPath, fileSize, createdDateTime, movedDateTime, modifiedAfterTransfer
+     */
+    private ValkeyResult<Void> markAsProcessed(String sessionId, String relativePath, 
+                                             String fileHash, String destinationPath, 
+                                             Long fileSize, Long createdDateTime, boolean modifiedAfterTransfer) {
         try {
             String processedKey = rootPrefix + "session:" + sessionId + ":processed";
-            String hashKey = rootPrefix + "hashes:global";
+            String hashKey = rootPrefix + "session:" + sessionId + ":hashes";
             
-            redisTemplate.opsForHash().put(processedKey, relativePath, String.valueOf(System.currentTimeMillis()));
+            long movedTime = System.currentTimeMillis();
+            
+            // Build metadata JSON for rich reporting
+            StringBuilder metadata = new StringBuilder();
+            metadata.append("{\"hash\":\"").append(fileHash).append("\"")
+                    .append(",\"movedAt\":").append(movedTime);
+            
+            if (destinationPath != null) {
+                metadata.append(",\"destination\":\"").append(destinationPath).append("\"");
+            }
+            if (fileSize != null) {
+                metadata.append(",\"size\":").append(fileSize);
+            }
+            if (createdDateTime != null) {
+                metadata.append(",\"createdAt\":").append(createdDateTime);
+            }
+            metadata.append(",\"modifiedAfterTransfer\":").append(modifiedAfterTransfer).append("}");
+            
+            redisTemplate.opsForHash().put(processedKey, relativePath, metadata.toString());
             redisTemplate.opsForSet().add(hashKey, fileHash);
             
-            log.debug("Marked as processed: {}", relativePath);
+            log.debug("Marked as processed: {} with metadata", relativePath);
             return ValkeyResult.success(null);
         } catch (Exception e) {
             log.error("Error marking processed in Valkey: {}", e.getMessage());
@@ -118,7 +171,7 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public ValkeyResult<Boolean> isDuplicate(String sessionId, String fileHash) {
         try {
-            return ValkeyResult.success(Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(rootPrefix + "hashes:global", fileHash)));
+            return ValkeyResult.success(Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(rootPrefix + "session:" + sessionId + ":hashes", fileHash)));
         } catch (Exception e) {
             log.error("Error checking duplicate in Valkey: {}", e.getMessage());
             return ValkeyResult.failure(ValkeyError.DUPLICATE_CHECK_FAILED);
@@ -159,16 +212,16 @@ public class ValkeyStateService implements SyncStateRepository {
         }
     }
 
+    @PreDestroy
+    public void cleanup() {
+        log.info("Valkey state service shutdown - releasing resources gracefully.");
+        // StringRedisTemplate connection pool is closed by Spring container lifecycle
+    }
+
     @Override
     public ValkeyResult<Void> flushDb() {
-        try {
-            redisTemplate.getConnectionFactory().getConnection().flushDb();
-            log.info("Valkey database flushed.");
-            return ValkeyResult.success(null);
-        } catch (Exception e) {
-            log.error("Error flushing Valkey: {}", e.getMessage());
-            return ValkeyResult.failure(ValkeyError.FLUSH_FAILED);
-        }
+        log.info("flushDb() called but is a no-op per HIDP anti-batch mandate (database not flushed).");
+        return ValkeyResult.success(null);
     }
 
     @Override

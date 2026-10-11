@@ -10,10 +10,8 @@ spring:
     banner-mode: console
 
 valkey:
-  host: 127.0.0.1
-  port: 6379
-  user: 
-  password:
+  host: ${VALKEY_HOST}
+  port: ${VALKEY_PORT}
   namespace: "local-photo-sync:"
 
 sync:

@@ -1,0 +1,15 @@
+[Unit]
+Description=Local Photo Sync Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/java -jar /root/local-photo-sync/target/local-photo-sync-1.0.0-SNAPSHOT.jar
+Environment=VALKEY_HOST=localhost
+Environment=VALKEY_PORT=6379
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
