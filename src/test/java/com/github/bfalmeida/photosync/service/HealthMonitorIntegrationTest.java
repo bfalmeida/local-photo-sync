@@ -1,7 +1,7 @@
 package com.github.bfalmeida.photosync.service;
 
 import com.github.bfalmeida.photosync.model.HealthStatus;
-import com.github.bfalmeida.photosync.ui.SyncEventBus;
+import com.github.bfalmeida.photosync.service.SyncEventBus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

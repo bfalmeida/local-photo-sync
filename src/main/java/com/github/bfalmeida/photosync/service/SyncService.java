@@ -338,7 +338,13 @@ public class SyncService {
 
     private Path determineDestinationPath(MediaFile file, LocalDateTime dateTime, Path destinationRoot, String undatedFolder) {
         String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
-        String typeFolder = file.mediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+        String typeFolder;
+        switch (file.mediaType()) {
+            case PHOTO -> typeFolder = "Photos";
+            case VIDEO -> typeFolder = "Videos";
+            case UNKNOWN -> typeFolder = "Videos";  // UNKNOWN extensions default to Videos
+            default -> typeFolder = "Videos";
+        }
 
         // Sanitize filename to prevent path traversal attacks
         String sanitizedFilename = PathSanitizer.sanitizeFilename(file.fileName());

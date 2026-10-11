@@ -51,7 +51,7 @@ public class MediaFileScanner {
                     if (UNSUPPORTED_EXTENSIONS.contains(extension)) {
                         return false;
                     }
-                    // Must be a supported media extension
+                    // Must be a supported media extension (photo or video)
                     return PHOTO_EXTENSIONS.contains(extension) || VIDEO_EXTENSIONS.contains(extension);
                 })
                 .filter(path -> {
@@ -91,7 +91,7 @@ public class MediaFileScanner {
         }
 
         MediaType mediaType = getMediaType(extension);
-        if (mediaType == null) {
+        if (mediaType == MediaType.UNKNOWN) {
             return null;
         }
 
@@ -130,6 +130,6 @@ public class MediaFileScanner {
         if (VIDEO_EXTENSIONS.contains(extension)) {
             return MediaType.VIDEO;
         }
-        return null;
+        return MediaType.UNKNOWN;
     }
 }

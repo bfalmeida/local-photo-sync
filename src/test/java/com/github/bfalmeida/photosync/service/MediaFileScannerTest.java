@@ -120,4 +120,19 @@ class MediaFileScannerTest {
         assertEquals(1, result.size(), "Should handle files with multiple dots correctly");
         assertEquals(1, result.stream().filter(f -> f.mediaType() == MediaType.PHOTO).count());
     }
+
+    @Test
+    void testScan_WMVMappingReturnsVideo() throws IOException {
+        Files.writeString(tempDir.resolve("video.wmv"), "wmv content");
+        List<MediaFile> result = scanner.scanToList(tempDir);
+        assertEquals(1, result.size());
+        assertEquals(MediaType.VIDEO, result.get(0).mediaType());
+    }
+
+    @Test
+    void testScan_UnknownExtensionFiltered() throws IOException {
+        Files.writeString(tempDir.resolve("unknown.xyz"), "unknown content");
+        List<MediaFile> result = scanner.scanToList(tempDir);
+        assertEquals(0, result.size(), "Unknown extensions should be filtered out");
+    }
 }

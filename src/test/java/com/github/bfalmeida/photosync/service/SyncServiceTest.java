@@ -4,7 +4,7 @@ import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
 import com.github.bfalmeida.photosync.model.MediaType;
-import com.github.bfalmeida.photosync.ui.SyncEventBus;
+import com.github.bfalmeida.photosync.service.SyncEventBus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
