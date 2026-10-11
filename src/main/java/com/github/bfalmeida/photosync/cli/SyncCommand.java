@@ -4,6 +4,7 @@ import com.github.bfalmeida.photosync.model.SyncSettings;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.service.MediaFileScanner;
 import com.github.bfalmeida.photosync.service.SyncService;
+import com.github.bfalmeida.photosync.service.PathSanitizer;
 import com.github.bfalmeida.photosync.service.SyncStateRepository;
 import com.github.bfalmeida.photosync.service.ValkeyResult;
 import org.slf4j.Logger;
@@ -104,17 +105,13 @@ public class SyncCommand {
             return "Error: Destination directory is required.";
         }
 
-        File sourceFile = new File(source);
-        if (!sourceFile.exists() || !sourceFile.isDirectory()) {
-            return "Error: Source path does not exist or is not a directory.";
-        }
-        Path normalizedSource = sourceFile.toPath().toAbsolutePath().normalize();
+        Path normalizedSource = PathSanitizer.validateDirectory(source);
 
         File destFile = new File(destination);
         if (destFile.exists() && !destFile.isDirectory()) {
             return "Error: Destination path exists but is not a directory.";
         }
-        Path normalizedDest = destFile.toPath().toAbsolutePath().normalize();
+        Path normalizedDest = PathSanitizer.validateDestination(destination, normalizedSource.getParent() != null ? normalizedSource.getParent() : normalizedSource);
 
         boolean willExecute = execute && !dryRun;
         if (!willExecute) {
