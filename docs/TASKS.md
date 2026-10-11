@@ -292,6 +292,19 @@ Coordinate all services to execute the complete media synchronization workflow.
 
 ---
 
+
+#### TASK-022: Add Unit Test Coverage
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #41
+**Completion Date**: 2026-10-12
+**Description**: Add unit tests for coverage gaps from PRs #127/#128/#129.
+**Acceptance Criteria**:
+- [x] Test MediaType.UNKNOWN for unrecognized extensions (MediaFileScannerTest)
+- [x] Verify determineDestinationPath returns `undated/file` when dateTime is null (SyncServiceTest)
+- [x] Compile + test passes (no new failures — 29 lines added)
+**Dependencies**: TASK-011
+
+---
+
 ### Phase 4: Quality & Testing
 
 #### TASK-010: Create Test Dataset
@@ -431,6 +444,7 @@ TASK-008 (File Copy)      │          ↓
 | 2026-10-11 | 1.0.0-SNAPSHOT | TRB-126 / PR #127: MediaType unification (Issue #33) — added UNKNOWN enum, WMV/edge-case support, unified path logic via MediaType (Marcus/Elena pipeline completed) |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #128: Issue #32 — Fix destination path preview (undated folder path fix) — Marcus/Elena pipeline completed |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #129: Issue #30 — Improve null handling (defensive equals + parsing boundaries) — Marcus/Elena pipeline completed |
+| 2026-10-12 | 1.0.0-SNAPSHOT | TASK-022 / PR #130: Issue #41 — Add unit test coverage for MediaType.UNKNOWN + undated path (Marcus/Elena/1SG pipeline completed) |
 
 ---
 
