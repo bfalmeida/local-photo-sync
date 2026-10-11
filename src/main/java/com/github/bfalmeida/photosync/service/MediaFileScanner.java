@@ -33,6 +33,9 @@ public class MediaFileScanner {
     );
 
     public Stream<MediaFile> scan(Path sourceDirectory) throws IOException {
+        if (sourceDirectory == null || Files.notExists(sourceDirectory) || !Files.isDirectory(sourceDirectory)) {
+            return Stream.empty();
+        }
         Stream<Path> paths = Files.walk(sourceDirectory);
         return paths
                 .filter(Files::isRegularFile)
