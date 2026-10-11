@@ -231,11 +231,12 @@ Coordinate all services to execute the complete media synchronization workflow.
 ---
 
 #### TASK-016: Fix Destination Path Previews
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #32
+**Status**: ✅ DONE | **Priority**: MEDIUM | **Issue**: #32
+**Completion Date**: 2026-10-11
 **Description**: Fix destination path preview: undated folder must not override dated layout.
 **Acceptance Criteria**:
-- [ ] Path preview shows correct destination even for undated files
-- [ ] No override of dated layout in preview output
+- [x] Path preview shows correct destination even for undated files
+- [x] No override of dated layout in preview output
 **Dependencies**: TASK-008
 
 ---
@@ -426,7 +427,8 @@ TASK-008 (File Copy)      │          ↓
 | 2026-03-29 | 1.0.0 | Updated task statuses - Phase 1-3 complete |
 | 2026-06-12 | 1.0.0 | Added Valkey Integration Phase (Phase 6) |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #123 MERGED: Security hardening (PathSanitizer), dependency modernization (jakarta.annotation-api, commons-imaging), removed dead GUI code |
-| 2026-10-11 | 1.0.0-SNAPSHOT | TRB-126 / PR #126: MediaType unification (Issue #33) — added UNKNOWN enum, WMV/edge-case support, unified path logic via MediaType (Marcus/Elena pipeline completed) |
+| 2026-10-11 | 1.0.0-SNAPSHOT | TRB-126 / PR #127: MediaType unification (Issue #33) — added UNKNOWN enum, WMV/edge-case support, unified path logic via MediaType (Marcus/Elena pipeline completed) |
+| 2026-10-11 | 1.0.0-SNAPSHOT | PR #128: Issue #32 — Fix destination path preview (undated folder must not override dated layout) — Marcus/Elena pipeline completed |
 
 ---
 
