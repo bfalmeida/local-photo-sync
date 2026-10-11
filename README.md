@@ -178,26 +178,6 @@ Files are organized as:
 
 ---
 
-## 📈 Progress
-
-- [x] TASK-001: Initialize Maven Project
-- [x] TASK-002: Configure Spring Shell CLI
-- [x] TASK-003: Configure Logging
-- [x] TASK-004: Define Sync Command Structure
-- [x] TASK-004b: Make log-level and log-file optional
-- [x] TASK-005: Implement File Scanner Service
-- [x] TASK-005b: Implement File Listing (Scan Only)
-- [x] TASK-006: Implement Date Extraction Service
-- [x] TASK-007: Implement EXIF Metadata Service
-- [x] TASK-008: Implement File Copy Service
-- [ ] TASK-009: Implement Main Sync Orchestrator
-- [ ] TASK-010: Create Test Dataset
-- [ ] TASK-011: Write Unit Tests
-- [x] TASK-012: Update README.md
-- [ ] TASK-013: Final Integration Test
-
----
-
 ## 📚 Documentation
 
 For deep dives into the system, check the `docs/` directory:
