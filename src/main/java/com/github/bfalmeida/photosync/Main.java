@@ -2,10 +2,11 @@ package com.github.bfalmeida.photosync;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
-import org.springframework.shell.standard.ShellComponent;
-import org.springframework.shell.standard.ShellMethod;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
+import org.springframework.stereotype.Component;
 
-@ShellComponent
+@Component
 public class Main {
 
     private final ApplicationContext context;
@@ -14,7 +15,7 @@ public class Main {
         this.context = context;
     }
 
-    @ShellMethod(key = "exit", value = "Exit the application")
+    @Command(name = "exit", description = "Exit the application")
     public void exit() {
         SpringApplication.exit(context, () -> 0);
     }

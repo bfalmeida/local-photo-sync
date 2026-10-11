@@ -4,7 +4,7 @@ import com.github.bfalmeida.photosync.model.CopyResult;
 import com.github.bfalmeida.photosync.model.MediaFile;
 import com.github.bfalmeida.photosync.model.SyncStatistics;
 import com.github.bfalmeida.photosync.model.SyncSettings;
-import com.github.bfalmeida.photosync.ui.SyncEventBus;
+import com.github.bfalmeida.photosync.service.SyncEventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import com.github.bfalmeida.photosync.service.PathSanitizer;
 import com.github.bfalmeida.photosync.model.MediaType;
 
 @Service
@@ -339,8 +340,11 @@ public class SyncService {
         String folderName = (undatedFolder == null || undatedFolder.isEmpty()) ? "undated" : undatedFolder;
         String typeFolder = file.mediaType() == MediaType.PHOTO ? "Photos" : "Videos";
 
+        // Sanitize filename to prevent path traversal attacks
+        String sanitizedFilename = PathSanitizer.sanitizeFilename(file.fileName());
+
         if (dateTime == null) {
-            return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(file.fileName());
+            return destinationRoot.resolve(folderName).resolve(typeFolder).resolve(sanitizedFilename);
         }
 
         int year = dateTime.getYear();
@@ -354,7 +358,7 @@ public class SyncService {
             path = path.resolve("WhatsApp");
         }
 
-        return path.resolve(file.fileName());
+        return path.resolve(sanitizedFilename);
     }
 
     private LocalDateTime resolveDate(MediaFile mediaFile) {

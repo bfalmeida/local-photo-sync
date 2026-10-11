@@ -1,7 +1,7 @@
 package com.github.bfalmeida.photosync.service;
 
 import com.github.bfalmeida.photosync.model.HealthStatus;
-import com.github.bfalmeida.photosync.ui.SyncEventBus;
+import com.github.bfalmeida.photosync.service.SyncEventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
