@@ -15,72 +15,166 @@ Application being developed by AI.
     - Falls back to **EXIF metadata** for images.
 - **Safety First**:
     - **Dry-run mode** is enabled by default to let you preview changes before any files are moved.
-- **Interactive CLI**: Powered by Spring Shell for an easy-to-use command experience.
+    - **Path traversal protection** via `PathSanitizer` — validates all file paths against directory escape attempts.
+- **CLI Interface**: Powered by Spring Shell with structured command arguments.
+
+---
 
 ## 🚀 Quick Start
 
 ### Requirements
 - **Java 21**
 - **Maven 3.9+**
+- **Valkey/Redis** (optional, for state persistence and resume capability)
 
 ### Build and Run
+
 ```bash
 # 1. Build the project
 mvn clean package
 
-# 2. Launch the interactive shell
-java -jar target/local-photo-sync-1.0.0-SNAPSHOT.jar
+# 2. Run the sync command directly (no interactive shell needed)
+java -jar target/local-photo-sync-1.0.0-SNAPSHOT.jar sync <source> <destination> [options]
 ```
 
-Once the shell is running, you can use the `sync` command to organize your files.
+The `sync` command is the primary entry point. Use `--help` to see all available options:
+
+```bash
+java -jar target/local-photo-sync-1.0.0-SNAPSHOT.jar sync --help
+```
 
 ---
 
 ## 🛠 Usage
 
-The primary command is `sync`. Since it's an interactive shell, you just type the command and its options.
-
 ### Basic Command Syntax
-`sync --source <path> --destination <path> [options]`
+
+```
+sync <source> <destination> [options]
+```
+
+**Arguments:**
+- `source` (required) — Directory containing the media files to organize
+- `destination` (required) — Target directory for organized files
 
 ### Common Scenarios
 
 #### 1. Previewing a Sync (Dry Run)
-By default, the app runs in dry-run mode. It will show you exactly where files *would* go without actually moving them.
+By default, the app runs in dry-run mode. It shows exactly where files *would* go without actually moving them.
+
 ```bash
-sync --source /Users/bruno/Pictures/Import --destination /Users/bruno/Pictures/Organized
+sync /Users/bruno/Pictures/Import /Users/bruno/Pictures/Organized
 ```
 
 #### 2. Executing the Actual Sync
-When you are happy with the preview, add the `--execute` flag to perform the real file operations.
+Add the `--execute` flag to perform the real file operations.
+
 ```bash
-sync --source /Users/bruno/Pictures/Import --destination /Users/bruno/Pictures/Organized --execute
+sync /Users/bruno/Pictures/Import /Users/bruno/Pictures/Organized --execute
 ```
 
 #### 3. Handling Undated Files
-If some files don't have a date in the filename or EXIF, you can specify a folder to collect them in:
-```bash
-sync --source /src --destination /dest --undatedFolder "Review_Needed" --execute
-```
-*Alternatively, use `--skipUndated` to simply ignore files that cannot be dated.*
+If some files don't have a date in the filename or EXIF, specify a folder to collect them in:
 
-#### 4. Customizing Logs
+```bash
+sync /src /dest --undated-folder "Review_Needed" --execute
+```
+
+Alternatively, use `--skip-undated` to simply ignore files that cannot be dated:
+
+```bash
+sync /src /dest --skip-undated --execute
+```
+
+#### 4. Valkey State Persistence (Resume Capability)
+Enable Valkey to track processed files and resume interrupted syncs:
+
+```bash
+sync /src /dest --execute --use-valkey
+```
+
+If a sync was interrupted, resume it with the same source/destination:
+
+```bash
+sync /src /dest --execute --use-valkey --resume-session
+```
+
+To clear previous state and start fresh:
+
+```bash
+sync /src /dest --execute --use-valkey --clear-state
+```
+
+#### 5. Customizing Logs
 Need more detail for debugging? Change the log level on the fly:
+
 ```bash
-sync --source /src --destination /dest --logLevel DEBUG
+sync /src /dest --execute --log-level DEBUG
 ```
 
-### Summary of Options
+Save logs to a file:
+
+```bash
+sync /src /dest --execute --log-file /var/log/photo-sync.log
+```
+
+#### 6. Combined Example
+Full-featured sync with Valkey persistence, custom undated folder, and debug logging:
+
+```bash
+sync /media/import /media/organized \
+  --execute \
+  --use-valkey \
+  --undated-folder "To_Review" \
+  --log-level INFO \
+  --log-file sync.log
+```
+
+---
+
+### Complete Options Reference
 
 | Option | Description | Default |
-| :--- | :--- | :--- |
-| `--source` | Directory containing the media files | (Required) |
-| `--destination` | Target directory for organized files | (Required) |
-| `--execute` | Perform actual file copy operations | `false` |
-| `--undatedFolder` | Folder name for files without date metadata | `undated` |
-| `--skipUndated` | Skip files without dates instead of moving them | `false` |
-| `--logLevel` | Logging verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`) | `INFO` |
-| `--logFile` | Path to a file for saving logs | `null` |
+|--------|-------------|---------|
+| `<source>` | Source directory containing media files | *(required, positional)* |
+| `<destination>` | Destination directory for organized files | *(required, positional)* |
+| `--execute` | Perform actual file copy operations | `false` (dry-run) |
+| `--dry-run` | Preview changes without executing | `true` (implied when `--execute` not set) |
+| `--undated-folder` | Folder name for files without date metadata | `undated` |
+| `--skip-undated` | Skip files without dates instead of moving them | `false` |
+| `--clear-state` | Reset the Valkey sync state before starting | `false` |
+| `--use-valkey` | Enable Valkey state persistence | `false` |
+| `--resume-session` | Resume existing session instead of creating new one | `false` |
+| `--log-level` | Logging verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`) | `INFO` |
+| `--log-file` | Path to a file for saving logs | `null` (console only) |
+
+**Important constraints:**
+- `--resume-session` and `--clear-state` cannot be used together.
+- `--use-valkey` requires a running Valkey/Redis instance (configured via `valkey.host`, `valkey.port`, `valkey.password` in `application.yml` or environment variables).
+- Dry-run is the default; files are never moved without `--execute`.
+
+---
+
+## 📂 Destination Structure
+
+Files are organized as:
+
+```
+<destination>/
+├── <year>/
+│   ├── <month>/
+│   │   ├── Photos/
+│   │   │   └── [WhatsApp/]
+│   │   └── Videos/
+│   │       └── [WhatsApp/]
+└── undated/                    # or custom --undated-folder name
+    ├── Photos/
+    └── Videos/
+```
+
+- **Photos** vs **Videos** separated by media type (based on file extension).
+- **WhatsApp** files detected by filename pattern (`WA` after date) placed in `WhatsApp/` subfolder.
+- **Undated** files go to the `undated` folder (customizable) unless `--skip-undated` is set.
 
 ---
 
@@ -102,14 +196,44 @@ sync --source /src --destination /dest --logLevel DEBUG
 - [x] TASK-012: Update README.md
 - [ ] TASK-013: Final Integration Test
 
+---
+
 ## 📚 Documentation
 
 For deep dives into the system, check the `docs/` directory:
-- [Architecture](docs/ARCHITECTURE.md) - System design and service responsibilities.
-- [CLI Reference](docs/CLI.md) - Detailed command usage.
-- [Destination Structure](docs/DESTINATION_STRUCTURE.md) - How your files are organized.
-- [Testing Guidelines](docs/TESTING.md) - Testing strategy and coverage.
-- [Task List](docs/TASKS.md) - Full implementation roadmap.
+
+- [Architecture](docs/ARCHITECTURE.md) — System design and service responsibilities.
+- [CLI Reference](docs/CLI.md) — Detailed command usage.
+- [Destination Structure](docs/DESTINATION_STRUCTURE.md) — How your files are organized.
+- [Testing Guidelines](docs/TESTING.md) — Testing strategy and coverage.
+- [Task List](docs/TASKS.md) — Full implementation roadmap.
+- [Valkey Integration](docs/VALKEY_INTEGRATION.md) — State persistence and resume capability.
+
+---
+
+## ⚙️ Configuration
+
+Configuration is managed via `src/main/resources/application.yml` or environment variables:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `valkey.host` | `127.0.0.1` | Valkey/Redis hostname |
+| `valkey.port` | `6379` | Valkey/Redis port |
+| `valkey.timeout` | `2000` | Connection timeout (ms) |
+| `valkey.password` | *(empty)* | Authentication password (if enabled) |
+
+Environment variables take precedence (e.g., `VALKEY_HOST`, `VALKEY_PASSWORD`).
+
+---
+
+## 🔒 Security
+
+- **Path traversal protection**: All user-provided paths are validated via `PathSanitizer` to prevent directory escape attacks.
+- **No hardcoded secrets**: Credentials loaded exclusively from configuration/environment.
+- **HIDP compliant**: `@PreDestroy` cleanup, no `flushDb` side-effects, session-scoped hash keys.
+
+---
 
 ## 📄 License
+
 MIT
