@@ -37,7 +37,7 @@ public class FileCopyService {
                 int year = dateTime.getYear();
                 int month = dateTime.getMonthValue();
 
-                String folderName = mediaFile.mediaType() == MediaType.PHOTO ? "Photos" : "Videos";
+                String folderName = mediaFile.mediaType() == MediaType.PHOTO ? "Photos" : (mediaFile.mediaType() == MediaType.VIDEO ? "Videos" : "Videos");
 
                 destinationFolder = destinationRoot
                         .resolve(String.valueOf(year))
