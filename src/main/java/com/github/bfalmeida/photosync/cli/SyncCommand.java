@@ -8,9 +8,10 @@ import com.github.bfalmeida.photosync.service.SyncStateRepository;
 import com.github.bfalmeida.photosync.service.ValkeyResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.shell.standard.ShellComponent;
-import org.springframework.shell.standard.ShellMethod;
-import org.springframework.shell.standard.ShellOption;
+import org.springframework.shell.core.command.annotation.Argument;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
+import org.springframework.stereotype.Component;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -22,7 +23,7 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.UUID;
 
-@ShellComponent
+@Component
 public class SyncCommand {
 
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(SyncCommand.class);
@@ -37,19 +38,19 @@ public class SyncCommand {
         this.stateRepository = stateRepository;
     }
 
-    @ShellMethod(key = "sync", value = "Synchronize photos from source to destination")
+    @Command(name = "sync", description = "Synchronize photos from source to destination")
     public String sync(
-            @ShellOption(help = "Source directory containing photos") String source,
-            @ShellOption(help = "Destination directory for photos") String destination,
-            @ShellOption(defaultValue = "false", help = "Preview changes without executing") boolean dryRun,
-            @ShellOption(help = "Execute the sync operation") boolean execute,
-            @ShellOption(help = "Folder for files without date metadata") String undatedFolder,
-            @ShellOption(help = "Skip files without date metadata") boolean skipUndated,
-            @ShellOption(help = "Reset the Valkey sync state") boolean clearState,
-            @ShellOption(defaultValue = "false", help = "Enable Valkey state persistence") boolean useValkey,
-            @ShellOption(defaultValue = "INFO", help = "Logging level (DEBUG, INFO, WARN, ERROR)") String logLevel,
-            @ShellOption(defaultValue = "null", help = "Log file path") String logFile,
-            @ShellOption(defaultValue = "false", help = "Resume existing session instead of creating new one") boolean resumeSession
+            @Argument(index = 0, description = "Source directory containing photos") String source,
+            @Argument(index = 1, description = "Destination directory for photos") String destination,
+            @Option(longName = "dry-run", defaultValue = "false", description = "Preview changes without executing", required = false) boolean dryRun,
+            @Option(longName = "execute", defaultValue = "false", description = "Execute the sync operation", required = false) boolean execute,
+            @Option(longName = "undated-folder", description = "Folder for files without date metadata", required = false) String undatedFolder,
+            @Option(longName = "skip-undated", defaultValue = "false", description = "Skip files without date metadata", required = false) boolean skipUndated,
+            @Option(longName = "clear-state", defaultValue = "false", description = "Reset the Valkey sync state", required = false) boolean clearState,
+            @Option(longName = "use-valkey", defaultValue = "false", description = "Enable Valkey state persistence", required = false) boolean useValkey,
+            @Option(longName = "log-level", defaultValue = "INFO", description = "Logging level (DEBUG, INFO, WARN, ERROR)", required = false) String logLevel,
+            @Option(longName = "log-file", defaultValue = "null", description = "Log file path", required = false) String logFile,
+            @Option(longName = "resume-session", defaultValue = "false", description = "Resume existing session instead of creating new one", required = false) boolean resumeSession
     ) {
         configureLogging(logLevel, logFile);
 
