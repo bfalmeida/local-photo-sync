@@ -293,14 +293,15 @@ Coordinate all services to execute the complete media synchronization workflow.
 **Dependencies**: TASK-011
 
 #### TASK-023: Add Static Analysis Tools
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #42
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #42
+**Completion Date**: 2026-10-12
 **Description**: Add SpotBugs, Checkstyle, and PMD static analysis tools to ensure code quality.
 **Acceptance Criteria**:
-- [ ] SpotBugs configured in pom.xml for bug detection
-- [ ] Checkstyle configured for code style enforcement
-- [ ] PMD configured for code pattern analysis
-- [ ] All tools integrated with Maven build
-- [ ] Coverage reports generated for JaCoCo
+- [x] SpotBugs configured in pom.xml for bug detection (v4.10.4.1, failOnError=false)
+- [x] Checkstyle configured for code style enforcement (v3.6.0)
+- [x] PMD configured for code pattern analysis (v3.26.0)
+- [x] All tools integrated with Maven build
+- [x] Coverage reports generated for JaCoCo
 **Dependencies**: TASK-011
 310|
 295|
@@ -459,7 +460,7 @@ TASK-008 (File Copy)      │          ↓
 | 2026-10-11 | 1.0.0-SNAPSHOT | TRB-126 / PR #127: MediaType unification (Issue #33) — added UNKNOWN enum, WMV/edge-case support, unified path logic via MediaType (Marcus/Elena pipeline completed) |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #128: Issue #32 — Fix destination path preview (undated folder path fix) — Marcus/Elena pipeline completed |
 | 2026-10-11 | 1.0.0-SNAPSHOT | PR #129: Issue #30 — Improve null handling (defensive equals + parsing boundaries) — Marcus/Elena pipeline completed |
-| 2026-10-12 | 1.0.0-SNAPSHOT | TASK-020: JaCoCo integrated for coverage reporting (verified via mvn jacoco:report) |
+| 2026-10-12 | 1.0.0-SNAPSHOT | TASK-020: JaCoCo integrated + verified + PR #139 merged (Issue #131) — coverage 54%-96% |
 | 2026-10-12 | 1.0.0-SNAPSHOT | TASK-022 / PR #130: Issue #41 — Add unit test coverage for MediaType.UNKNOWN + undated path (Marcus/Elena/1SG pipeline completed) |
 | 2026-10-13 | 1.0.0-SNAPSHOT | Issue #132: Add SpotBugs for static analysis (PM-reviewed, TRB-ready) |
 | 2026-10-13 | 1.0.0-SNAPSHOT | Issue #133: Add Checkstyle for code style (PM-reviewed, TRB-ready) |
