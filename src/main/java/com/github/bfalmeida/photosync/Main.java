@@ -6,6 +6,10 @@ import org.springframework.shell.core.command.annotation.Command;
 import org.springframework.shell.core.command.annotation.Option;
 import org.springframework.stereotype.Component;
 
+/**
+ * Main application entry point for the photo synchronization tool.
+ * Handles Spring Boot application lifecycle and shell command registration.
+ */
 @Component
 public class Main {
 

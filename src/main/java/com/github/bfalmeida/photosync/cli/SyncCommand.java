@@ -35,7 +35,7 @@ import com.github.bfalmeida.photosync.model.MediaFile;
 @Component
 public class SyncCommand {
 
-    private static final org.slf4j.Logger log = LoggerFactory.getLogger(SyncCommand.class);
+    private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(SyncCommand.class);
 
     private final MediaFileScanner mediaFileScanner;
     private final SyncService syncService;
@@ -95,16 +95,16 @@ public class SyncCommand {
             }
         }
 
-        log.info("Sync command options received:");
-        log.info("  source: {}", source);
-        log.info("  destination: {}", destination);
-        log.info("  dry-run: {}", dryRun);
-        log.info("  execute: {}", execute);
-        log.info("  undated-folder: {}", undatedFolder);
-        log.info("  skip-undated: {}", skipUndated);
-        log.info("  clear-state: {}", clearState);
-        log.info("  use-valkey: {}", useValkey);
-        log.info("  resume-session: {}", resumeSession);
+        LOG.info("Sync command options received:");
+        LOG.info("  source: {}", source);
+        LOG.info("  destination: {}", destination);
+        LOG.info("  dry-run: {}", dryRun);
+        LOG.info("  execute: {}", execute);
+        LOG.info("  undated-folder: {}", undatedFolder);
+        LOG.info("  skip-undated: {}", skipUndated);
+        LOG.info("  clear-state: {}", clearState);
+        LOG.info("  use-valkey: {}", useValkey);
+        LOG.info("  resume-session: {}", resumeSession);
 
         if (resumeSession && clearState) {
             return "Error: Cannot use both --resume-session and --clear-state flags together.";
@@ -127,7 +127,7 @@ public class SyncCommand {
 
         boolean willExecute = execute && !dryRun;
         if (!willExecute) {
-            log.info("Running in dry-run mode. Use --execute to perform actual operations.");
+            LOG.info("Running in dry-run mode. Use --execute to perform actual operations.");
         }
 
         try {
@@ -172,14 +172,14 @@ public class SyncCommand {
                         }
                     }
                 } catch (Exception e) {
-                    log.error("Error during duplicate detection: {}", e.getMessage());
+                    LOG.error("Error during duplicate detection: {}", e.getMessage());
                     System.out.println("Error: " + e.getMessage());
                 }
             }
 
             return stats.toString();
         } catch (Exception e) {
-            log.error("Error executing sync: {}", e.getMessage());
+            LOG.error("Error executing sync: {}", e.getMessage());
             return "Error: " + e.getMessage();
         }
     }
