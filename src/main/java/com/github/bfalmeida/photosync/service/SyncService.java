@@ -38,6 +38,7 @@ public class SyncService {
     private final int threadCount;
     private final SyncEventBus eventBus;
 
+    @SuppressWarnings("EI_EXPOSE_REP2")
     public SyncService(MediaFileScanner mediaFileScanner,
                       FilenameDateExtractor filenameDateExtractor,
                       ExifMetadataService exifMetadataService,
@@ -138,7 +139,7 @@ public class SyncService {
             eventBus.publish(SyncEventBus.EventType.COMPLETE, null,
                 String.format("Sync finished. Copied: %d, Skipped: %d, Errors: %d",
                 stats.getCopied(), stats.getSkipped(), stats.getErrors()));
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             log.error("Error during synchronization: {}", e.getMessage());
             stats.incrementErrors();
             eventBus.publish(SyncEventBus.EventType.ERROR, null, "Critical error: " + e.getMessage());
@@ -150,8 +151,8 @@ public class SyncService {
     private void processFile(MediaFile file, SyncSettings settings, SyncStatistics stats) {
         try {
             // Defensive check: file may have been deleted/moved after scanning (race condition)
-            String fileName = file != null ? file.fileName() : "unknown";
             if (file == null || file.path() == null || !Files.exists(file.path())) {
+                String fileName = file != null ? file.fileName() : "unknown";
                 log.warn("Skipping file that no longer exists: {}", fileName);
                 stats.incrementSkipped();
                 return;
@@ -317,11 +318,11 @@ public class SyncService {
             }
         } catch (Exception e) {
             stats.incrementErrors();
-            log.error("CRITICAL FAILURE copying file {}: {}", file.fileName(), e.getMessage(), e);
-            eventBus.publishLog("FAILED: " + file.fileName() + " - " + e.getMessage());
+            String fileName = file != null ? file.fileName() : "unknown";
+            log.error("CRITICAL FAILURE copying file {}: {}", fileName, e.getMessage(), e);
+            eventBus.publishLog("FAILED: " + fileName + " - " + e.getMessage());
 
             // Defensive: handle null file or null path in error handler
-            String fileName = file != null ? file.fileName() : "unknown";
             try {
                 String relativePath = settings.source().relativize(file != null && file.path() != null ? file.path() : Path.of("unknown")).toString();
                 if (settings.useValkey()) {
