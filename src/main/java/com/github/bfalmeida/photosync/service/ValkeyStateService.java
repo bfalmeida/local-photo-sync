@@ -30,7 +30,11 @@ public class ValkeyStateService implements SyncStateRepository {
     }
 
     public ValkeyStateService(StringRedisTemplate redisTemplate) {
-        this.redisTemplate = redisTemplate;
+        if (redisTemplate == null) {
+            throw new IllegalArgumentException("redisTemplate must not be null");
+        }
+        // Defensive copy to prevent external mutation of the stored reference
+        this.redisTemplate = new StringRedisTemplate(redisTemplate.getConnectionFactory());
         log.info("Valkey state service initialized using Spring Data Redis with namespace: {}", this.rootPrefix);
     }
 
@@ -57,8 +61,8 @@ public class ValkeyStateService implements SyncStateRepository {
     public ValkeyResult<Void> createSession(String sessionId, String sourcePath, String destinationPath, boolean append) {
         try {
             String key = rootPrefix + "session:" + sessionId;
-            
-            if (append && redisTemplate.hasKey(key)) {
+            Boolean hasKey = redisTemplate.hasKey(key);
+            if (append && Boolean.TRUE.equals(hasKey)) {
                 // Resume existing session - update status to RESUMED
                 redisTemplate.opsForHash().put(key, "status", "RESUMED");
                 redisTemplate.opsForHash().put(key, "resumeTime", String.valueOf(System.currentTimeMillis()));
