@@ -7,6 +7,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 import java.util.Map;
+import java.util.Set;
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 @Service
 public class ValkeyStateService implements SyncStateRepository {
@@ -227,6 +230,49 @@ public class ValkeyStateService implements SyncStateRepository {
     @Override
     public String getConnectionInfo() {
         return host + ":" + port;
+    }
+
+    /** Get all session IDs currently stored in Valkey. */
+    public Set<String> listSessionIds() {
+        try {
+            Set<String> keys = redisTemplate.keys(rootPrefix + "session:*");
+            if (keys == null) {
+                return Collections.emptySet();
+            }
+            return keys.stream()
+                    .map(key -> key.replace(rootPrefix + "session:", ""))
+                    .collect(Collectors.toSet());
+        } catch (Exception e) {
+            log.error("Error listing session IDs: {}", e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    /** Get all processed file hashes for a given session. */
+    public Set<String> getProcessedFileHashes(String sessionId) {
+        try {
+            String hashKey = rootPrefix + "session:" + sessionId + ":hashes";
+            return redisTemplate.opsForSet().members(hashKey);
+        } catch (Exception e) {
+            log.error("Error getting processed hashes for session {}: {}", sessionId, e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    /** Get session metadata (status, start time) for a given session ID. */
+    @SuppressWarnings("unchecked")
+    public Map<String, String> getSessionMetadata(String sessionId) {
+        try {
+            String key = rootPrefix + "session:" + sessionId;
+            Map<Object, Object> raw = redisTemplate.opsForHash().entries(key);
+            return raw.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            e -> String.valueOf(e.getKey()),
+                            e -> String.valueOf(e.getValue())));
+        } catch (Exception e) {
+            log.error("Error getting session metadata for {}: {}", sessionId, e.getMessage());
+            return Collections.emptyMap();
+        }
     }
 
     // Getter for namespace (used by tests)
