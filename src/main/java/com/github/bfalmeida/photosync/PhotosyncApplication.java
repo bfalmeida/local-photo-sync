@@ -10,7 +10,7 @@ public class PhotosyncApplication {
     public static void main(String[] args) {
         System.out.println("[BOOT] Initializing CLI kernel...");
         try {
-            org.springframework.context.ConfigurableApplicationContext context = SpringApplication.run(PhotosyncApplication.class, args);
+            SpringApplication.run(PhotosyncApplication.class, args);
         } catch (Exception e) {
             System.err.println("[FATAL] Kernel Crash detected:");
             e.printStackTrace();
