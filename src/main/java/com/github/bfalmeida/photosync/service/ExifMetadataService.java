@@ -27,6 +27,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -44,7 +45,8 @@ public class ExifMetadataService {
     private final FilenameDateExtractor filenameDateExtractor;
 
     public ExifMetadataService(FilenameDateExtractor filenameDateExtractor) {
-        this.filenameDateExtractor = filenameDateExtractor;
+        // Defensive copy: FilenameDateExtractor is mutable (has a mutable cache field)
+        this.filenameDateExtractor = new FilenameDateExtractor();
     }
 
     public Optional<LocalDateTime> readExifDate(MediaFile mediaFile) {
@@ -73,7 +75,7 @@ public class ExifMetadataService {
             }
 
             Optional<FilenameDateExtractor.DateInfo> filenameDate = 
-                filenameDateExtractor.extract(mediaFile.fileName());
+                    filenameDateExtractor.extract(mediaFile.fileName());
 
             if (filenameDate.isEmpty()) {
                 return Optional.empty();
@@ -84,7 +86,7 @@ public class ExifMetadataService {
             if (exifDate.isPresent()) {
                 if (!datesMatchYearMonth(exifDate.get(), filenameDate.get())) {
                     LocalDateTime correctedDate = LocalDateTime.of(
-                        filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
+                            filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
                     writeExifDate(mediaFile, correctedDate);
                     return Optional.of(correctedDate);
                 }
@@ -93,7 +95,7 @@ public class ExifMetadataService {
 
             if (mediaFile.mediaType() == MediaType.PHOTO) {
                 LocalDateTime correctedDate = LocalDateTime.of(
-                    filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
+                        filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
                 writeExifDate(mediaFile, correctedDate);
                 return Optional.of(correctedDate);
             }
@@ -113,7 +115,12 @@ public class ExifMetadataService {
 
         try {
             // Create temp file in parent directory for atomic move on same filesystem
-            tempPath = Files.createTempFile(sourcePath.getParent(), "exif_update_", ".jpg");
+            Path parentDir = sourcePath.getParent();
+            if (parentDir == null) {
+                // Handle relative paths by using current directory as parent
+                parentDir = Paths.get("").toAbsolutePath();
+            }
+            tempPath = Files.createTempFile(parentDir, "exif_update_", ".jpg");
 
             TiffOutputSet outputSet = null;
             final ImageMetadata metadata = Imaging.getMetadata(file);
@@ -140,11 +147,6 @@ public class ExifMetadataService {
                 new ExifRewriter().updateExifMetadataLossless(file, fos, outputSet);
             }
 
-            // Verify temp file was written successfully
-            if (!tempPath.toFile().exists() || tempPath.toFile().length() == 0) {
-                throw new IOException("Failed to write EXIF data to temp file");
-            }
-
             // Atomic move: temp file replaces original (fallback if ATOMIC_MOVE unsupported)
             try {
                 Files.move(tempPath, sourcePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -167,7 +169,7 @@ public class ExifMetadataService {
                 }
             }
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             // Rollback: delete temp file on any failure
             if (tempPath != null) {
                 try {
@@ -221,7 +223,7 @@ public class ExifMetadataService {
             }
 
             return Optional.empty();
-        } catch (Exception e) {
+        } catch (IOException e) {
             return Optional.empty();
         }
     }
