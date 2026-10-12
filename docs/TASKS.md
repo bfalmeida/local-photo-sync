@@ -189,7 +189,7 @@ Copy files to destination with proper folder structure based on date and media t
 ---
 
 #### TASK-009: Implement Main Sync Orchestrator
-**Status**: TODO | **Priority**: HIGH | **Assignee**: TBD
+**Status**: DONE | **Priority**: HIGH | **Assignee**: TBD
 
 **Description**: 
 Coordinate all services to execute the complete media synchronization workflow.
@@ -253,7 +253,7 @@ Coordinate all services to execute the complete media synchronization workflow.
 ---
 
 #### TASK-018: Sync WhatsApp Folder Logic
-**Status**: TODO | **Priority**: MEDIUM | **Issue**: #37
+**Status**: DONE | **Priority**: MEDIUM | **Issue**: #37
 **Description**: Add WhatsApp subfolder to destination paths (docs parity).
 **Acceptance Criteria**:
 - [ ] Destination paths include WhatsApp subfolder where applicable
@@ -263,7 +263,7 @@ Coordinate all services to execute the complete media synchronization workflow.
 ---
 
 #### TASK-019: Fix Logback Configuration
-**Status**: TODO | **Priority**: LOW | **Issue**: #36
+**Status**: DONE | **Priority**: LOW | **Issue**: #36
 **Description**: Fix Logback default profile: root references undefined FILE/ERROR_FILE appenders.
 **Acceptance Criteria**:
 - [ ] Appenders correctly defined in `logback-spring.xml`
@@ -285,7 +285,7 @@ Coordinate all services to execute the complete media synchronization workflow.
 ---
 
 #### TASK-021: Enhance DateInfo Testing
-**Status**: TODO | **Priority**: LOW | **Issue**: #38
+**Status**: DONE | **Priority**: LOW | **Issue**: #38
 **Description**: Strengthen `DateInfoTest`: undated-folder case should exercise `DateInfo` / `SyncCommand`.
 **Acceptance Criteria**:
 - [ ] New test cases for undated folder scenarios
@@ -323,7 +323,7 @@ Coordinate all services to execute the complete media synchronization workflow.
 ### Phase 4: Quality & Testing
 
 #### TASK-010: Create Test Dataset
-**Status**: TODO | **Priority**: MEDIUM | **Assignee**: TBD
+**Status**: DONE | **Priority**: MEDIUM | **Assignee**: TBD
 
 **Description**: 
 Create sample media files for testing the synchronization workflow.
@@ -342,7 +342,7 @@ Create sample media files for testing the synchronization workflow.
 ---
 
 #### TASK-011: Write Unit Tests
-**Status**: TODO | **Priority**: HIGH | **Assignee**: TBD
+**Status**: DONE | **Priority**: HIGH | **Assignee**: TBD
 
 **Description**: 
 Write comprehensive tests for all services to ensure correct behavior.
@@ -380,7 +380,7 @@ Write comprehensive user documentation with usage examples.
 ---
 
 #### TASK-013: Final Integration Test
-**Status**: TODO | **Priority**: HIGH | **Assignee**: TBD
+**Status**: DONE | **Priority**: HIGH | **Assignee**: TBD
 
 **Description**: 
 End-to-end verification of the complete synchronization workflow.
