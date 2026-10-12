@@ -11,23 +11,28 @@ import org.slf4j.LoggerFactory;
 
 @Configuration
 public class RedisConfig {
-    private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
+    /** Logger for Redis configuration. */
+    private static final Logger LOG = LoggerFactory.getLogger(RedisConfig.class);
 
+    /** Redis host. */
     @Value("${valkey.host:127.0.0.1}")
     private String host;
 
+    /** Redis port. */
     @Value("${valkey.port:6379}")
     private int port;
 
+    /** Redis username. */
     @Value("${valkey.user:}")
     private String user;
 
+    /** Redis password. */
     @Value("${valkey.password:}")
     private String password;
 
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {
-        log.info("Configuring Redis connection factory: host={}, port={}, user={}", host, port, user);
+        LOG.info("Configuring Redis connection factory: host={}, port={}, user={}", host, port, user);
         
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(host);
@@ -35,12 +40,12 @@ public class RedisConfig {
         
         if (user != null && !user.isBlank()) {
             config.setUsername(user);
-            log.debug("Redis username set: {}", user);
+            LOG.debug("Redis username set: {}", user);
         }
         
         if (password != null && !password.isBlank()) {
             config.setPassword(password);
-            log.debug("Redis password set");
+            LOG.debug("Redis password set");
         }
 
         return new LettuceConnectionFactory(config);
