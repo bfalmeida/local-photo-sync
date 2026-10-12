@@ -7,9 +7,12 @@ import com.github.bfalmeida.photosync.service.SyncService;
 import com.github.bfalmeida.photosync.service.SyncStateRepository;
 import com.github.bfalmeida.photosync.service.ValkeyError;
 import com.github.bfalmeida.photosync.service.ValkeyResult;
+import com.github.bfalmeida.photosync.service.PerceptualHashService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
+import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -19,16 +22,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
 class SyncCommandTest {
 
     private MediaFileScanner mediaFileScanner;
     private SyncService syncService;
     private SyncStateRepository stateRepository;
+    private PerceptualHashService perceptualHashService;
     private SyncCommand syncCommand;
 
     @TempDir
@@ -39,13 +39,14 @@ class SyncCommandTest {
         mediaFileScanner = mock(MediaFileScanner.class);
         syncService = mock(SyncService.class);
         stateRepository = mock(SyncStateRepository.class);
-        syncCommand = new SyncCommand(mediaFileScanner, syncService, stateRepository);
+        perceptualHashService = mock(PerceptualHashService.class);
+        syncCommand = new SyncCommand(mediaFileScanner, syncService, stateRepository, perceptualHashService);
     }
 
     @Test
     void testSyncCommand_NullSourceReturnsError() {
         String result = syncCommand.sync(
-            null, "/dest", false, true, "undated", false, false, false, "INFO", null, false
+            null, "/dest", false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -55,7 +56,7 @@ class SyncCommandTest {
     @Test
     void testSyncCommand_BlankSourceReturnsError() {
         String result = syncCommand.sync(
-            "", "/dest", false, true, "undated", false, false, false, "INFO", null, false
+            "", "/dest", false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -65,7 +66,7 @@ class SyncCommandTest {
     @Test
     void testSyncCommand_NullDestinationReturnsError() {
         String result = syncCommand.sync(
-            "/source", null, false, true, "undated", false, false, false, "INFO", null, false
+            "/source", null, false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -75,7 +76,7 @@ class SyncCommandTest {
     @Test
     void testSyncCommand_BlankDestinationReturnsError() {
         String result = syncCommand.sync(
-            "/source", "", false, true, "undated", false, false, false, "INFO", null, false
+            "/source", "", false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -85,7 +86,7 @@ class SyncCommandTest {
     @Test
     void testSyncCommand_NonExistentSourceReturnsError() {
         String result = syncCommand.sync(
-            "/nonexistent/path/source", "/dest", false, true, "undated", false, false, false, "INFO", null, false
+            "/nonexistent/path/source", "/dest", false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -98,7 +99,7 @@ class SyncCommandTest {
         Files.writeString(sourceFile, "content");
 
         String result = syncCommand.sync(
-            sourceFile.toString(), tempDir.toString(), false, true, "undated", false, false, false, "INFO", null, false
+            sourceFile.toString(), tempDir.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -114,7 +115,7 @@ class SyncCommandTest {
         Files.writeString(destFile, "content");
 
         String result = syncCommand.sync(
-            sourceDir.toString(), destFile.toString(), false, true, "undated", false, false, false, "INFO", null, false
+            sourceDir.toString(), destFile.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error"));
@@ -137,7 +138,7 @@ class SyncCommandTest {
 
         try {
             String result = syncCommand.sync(
-                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false
+                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
             );
 
             // Valkey disabled, should print stateless message
@@ -165,7 +166,7 @@ class SyncCommandTest {
 
         try {
             String result = syncCommand.sync(
-                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false
+                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false, false, 10
             );
 
             String output = outContent.toString();
@@ -192,7 +193,7 @@ class SyncCommandTest {
 
         try {
             String result = syncCommand.sync(
-                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false
+                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false, false, 10
             );
 
             String output = outContent.toString();
@@ -220,7 +221,7 @@ class SyncCommandTest {
 
         try {
             String result = syncCommand.sync(
-                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false
+                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false, false, 10
             );
 
             String output = outContent.toString();
@@ -248,7 +249,7 @@ class SyncCommandTest {
 
         try {
             String result = syncCommand.sync(
-                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false
+                sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, true, "INFO", null, false, false, 10
             );
 
             String output = outContent.toString();
@@ -269,7 +270,7 @@ class SyncCommandTest {
         when(syncService.synchronize(any())).thenReturn(mockStats);
 
         String result = syncCommand.sync(
-            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false
+            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertNotNull(result);
@@ -288,7 +289,7 @@ class SyncCommandTest {
 
         // Both dryRun=true and execute=true -> dry run wins (willExecute = false)
         String result = syncCommand.sync(
-            sourceDir.toString(), destDir.toString(), true, true, "undated", false, false, false, "INFO", null, false
+            sourceDir.toString(), destDir.toString(), true, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertNotNull(result);
@@ -306,7 +307,7 @@ class SyncCommandTest {
         when(syncService.synchronize(any())).thenReturn(mockStats);
 
         String result = syncCommand.sync(
-            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false
+            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertNotNull(result);
@@ -325,7 +326,7 @@ class SyncCommandTest {
 
         // logFile=null should use default (no file appender)
         String result = syncCommand.sync(
-            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false
+            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertNotNull(result);
@@ -343,7 +344,7 @@ class SyncCommandTest {
 
         // logFile="" should also skip file appender
         String result = syncCommand.sync(
-            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", "", false
+            sourceDir.toString(), destDir.toString(), false, true, "undated", false, false, false, "INFO", "", false, false, 10
         );
 
         assertNotNull(result);
@@ -374,7 +375,7 @@ class SyncCommandTest {
         when(syncService.synchronize(any())).thenThrow(new RuntimeException("Test error"));
 
         String result = syncCommand.sync(
-            sourceDir.toString(), tempDir.toString(), false, true, "undated", false, false, false, "INFO", null, false
+            sourceDir.toString(), tempDir.toString(), false, true, "undated", false, false, false, "INFO", null, false, false, 10
         );
 
         assertTrue(result.contains("Error:"));
