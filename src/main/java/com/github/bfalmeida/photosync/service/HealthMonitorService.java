@@ -39,7 +39,8 @@ public class HealthMonitorService {
 
         // Check Disk (using a generic root path as a proxy for system health, 
         // since we don't have the specific destination path yet in the service layer)
-        HealthStatus diskStatus = checkDiskSpace(Path.of("/"));
+        String diskCheckPath = System.getenv().getOrDefault("HEALTH_CHECK_DISK_PATH", System.getProperty("health.check.disk.path", "/"));
+        HealthStatus diskStatus = checkDiskSpace(Path.of(diskCheckPath));
         eventBus.publish(SyncEventBus.EventType.LOG, diskStatus,
             diskStatus.healthy() ? "Health: Disk OK" : "Health: Disk Warning - " + diskStatus.message());
     }
