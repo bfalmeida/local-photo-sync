@@ -39,7 +39,7 @@ public class MediaFileScanner {
         Stream<Path> paths = Files.walk(sourceDirectory);
         return paths
                 .filter(Files::isRegularFile)
-                .filter(path -> !path.getFileName().toString().startsWith("."))
+                .filter(path -> path.getFileName() != null && !path.getFileName().toString().startsWith("."))
                 .filter(path -> {
                     // Extract filename safely - handle null/empty cases
                     String fileName = path.getFileName() != null ? path.getFileName().toString() : "";
