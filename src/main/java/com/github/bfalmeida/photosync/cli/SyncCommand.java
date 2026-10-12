@@ -345,7 +345,10 @@ public class SyncCommand {
             File testCase = new File(tempFile.getParentFile(), testName.toLowerCase());
 
             boolean isCaseSensitive = !testCase.exists() || !testCase.equals(tempFile);
-            tempFile.delete();
+            boolean deleted = tempFile.delete();
+            if (!deleted) {
+                output.append("   🔴 Warning: Failed to delete temporary file\n");
+            }
 
             if (isCaseSensitive) {
                 output.append("   🟢 Filesystem is case-sensitive\n");
