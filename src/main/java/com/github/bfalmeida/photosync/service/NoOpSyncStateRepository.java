@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * to run in stateless mode.
  */
 @Component
-@ConditionalOnProperty(name = "valkey.enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "valkey.enabled", havingValue = "false")
 public class NoOpSyncStateRepository implements SyncStateRepository {
 
     @Override
