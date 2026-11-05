@@ -31,8 +31,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      - name: Compile
-        run: mvn clean compile -q
+      - name: Build and test
+        run: mvn -B verify -q
 
       - name: SpotBugs Check
         run: mvn spotbugs:check -q
@@ -42,9 +42,6 @@ jobs:
 
       - name: PMD Check
         run: mvn pmd:check -q
-
-      - name: JaCoCo Report
-        run: mvn jacoco:report -q
 
       - name: Upload Reports
         uses: actions/upload-artifact@v4
