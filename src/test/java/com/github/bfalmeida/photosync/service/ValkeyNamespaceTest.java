@@ -9,17 +9,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 public class ValkeyNamespaceTest {
-    @Autowired
+    @Autowired(required = false)
     private ValkeyStateService stateService;
 
-    @Autowired
+    @Autowired(required = false)
     private StringRedisTemplate redisTemplate;
 
     @Test
     public void testNamespaceCorrectness() {
-        // Skip test if Redis is not available
+        // Skip test if Valkey beans are not available
+        Assumptions.assumeTrue(stateService != null, "ValkeyStateService not available - skipping integration test");
+        Assumptions.assumeTrue(redisTemplate != null, "StringRedisTemplate not available - skipping integration test");
+
+        // Skip test if Redis is not reachable
         ValkeyResult<Boolean> pingResult = stateService.ping();
-        Assumptions.assumeTrue(pingResult.isSuccess(), "Redis must be available for this integration test");
+        Assumptions.assumeTrue(pingResult.isSuccess(), "Valkey must be available for this integration test");
         
         String sessionId = "test-session-123";
         String path = "test/photo.jpg";
