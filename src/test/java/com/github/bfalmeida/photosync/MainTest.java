@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MainTest {
 
     @Test
-    void testConstructor_StoresApplicationContext() {
+    void testConstructor_WithValidContext() {
         ApplicationContext context = mock(ApplicationContext.class);
         Main main = new Main(context);
         
@@ -30,7 +30,10 @@ class MainTest {
         Main main = new Main(context);
         
         // SpringApplication.exit delegates to ConfigurableApplicationContext.close()
-        // when given a ConfigurableApplicationContext
+        // when given a ConfigurableApplicationContext.
+        // System.exit() is not called here because SpringApplication.exit() only calls
+        // System.exit() when running with a real context and the exit code is non-zero.
+        // With a mocked context, close() is called but System.exit() is never reached.
         main.exit();
         
         // Verify the context was closed
