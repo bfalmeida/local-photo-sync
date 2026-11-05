@@ -3,6 +3,7 @@ package com.github.bfalmeida.photosync.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
@@ -12,16 +13,17 @@ import java.util.Collections;
 import java.util.stream.Collectors;
 
 @Service
+@ConditionalOnProperty(name = "valkey.enabled", havingValue = "true", matchIfMissing = true)
 public class ValkeyStateService implements SyncStateRepository {
     private static final Logger log = LoggerFactory.getLogger(ValkeyStateService.class);
     private final StringRedisTemplate redisTemplate;
     // Configurable namespace - initialized via @Value, defaults to "local-photo-sync:"
     private String rootPrefix = "local-photo-sync:";
 
-    @Value("${VALKEY_HOST}")
+    @Value("${VALKEY_HOST:127.0.0.1}")
     private String host;
 
-    @Value("${VALKEY_PORT}")
+    @Value("${VALKEY_PORT:6379}")
     private int port;
 
     @Value("${valkey.namespace:local-photo-sync:}")

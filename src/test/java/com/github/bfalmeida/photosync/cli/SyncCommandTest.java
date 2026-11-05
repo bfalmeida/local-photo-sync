@@ -90,7 +90,7 @@ class SyncCommandTest {
         );
 
         assertTrue(result.contains("Error"));
-        assertTrue(result.contains("Source path does not exist"));
+        assertTrue(result.contains("Directory does not exist"));
     }
 
     @Test
@@ -103,7 +103,7 @@ class SyncCommandTest {
         );
 
         assertTrue(result.contains("Error"));
-        assertTrue(result.contains("Source path does not exist or is not a directory"));
+        assertTrue(result.contains("Path is not a directory"));
     }
 
     @Test

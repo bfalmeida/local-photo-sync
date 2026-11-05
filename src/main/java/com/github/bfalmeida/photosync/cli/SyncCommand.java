@@ -117,20 +117,19 @@ public class SyncCommand {
             return "Error: Destination directory is required.";
         }
 
-        Path normalizedSource = PathSanitizer.validateDirectory(source);
-
-        File destFile = new File(destination);
-        if (destFile.exists() && !destFile.isDirectory()) {
-            return "Error: Destination path exists but is not a directory.";
-        }
-        Path normalizedDest = PathSanitizer.validateDestination(destination, normalizedSource.getParent() != null ? normalizedSource.getParent() : normalizedSource);
-
-        boolean willExecute = execute && !dryRun;
-        if (!willExecute) {
-            LOG.info("Running in dry-run mode. Use --execute to perform actual operations.");
-        }
-
         try {
+            Path normalizedSource = PathSanitizer.validateDirectory(source);
+
+            File destFile = new File(destination);
+            if (destFile.exists() && !destFile.isDirectory()) {
+                return "Error: Destination path exists but is not a directory.";
+            }
+            Path normalizedDest = PathSanitizer.validateDestination(destination, normalizedSource.getParent() != null ? normalizedSource.getParent() : normalizedSource);
+
+            boolean willExecute = execute && !dryRun;
+            if (!willExecute) {
+                LOG.info("Running in dry-run mode. Use --execute to perform actual operations.");
+            }
             String pathPair = normalizedSource.toRealPath().toString() + "->" + normalizedDest.toRealPath().toString();
             String sessionId = java.util.UUID.nameUUIDFromBytes(pathPair.getBytes()).toString();
             SyncSettings settings = new SyncSettings(

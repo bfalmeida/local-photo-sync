@@ -93,14 +93,19 @@ public class ExifMetadataService {
                 return Optional.empty();
             }
 
+            LocalDateTime filenameDateValue = LocalDateTime.of(
+                    filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
+
             if (mediaFile.mediaType() == MediaType.PHOTO) {
-                LocalDateTime correctedDate = LocalDateTime.of(
-                        filenameDate.get().year(), filenameDate.get().month(), 1, 0, 0, 0);
-                writeExifDate(mediaFile, correctedDate);
-                return Optional.of(correctedDate);
+                try {
+                    writeExifDate(mediaFile, filenameDateValue);
+                } catch (Exception e) {
+                    // If writing EXIF fails (e.g., empty or corrupt file), still return
+                    // the filename date so the file can be organized by its name.
+                }
             }
 
-            return Optional.empty();
+            return Optional.of(filenameDateValue);
         } catch (Exception e) {
             return Optional.empty();
         }
